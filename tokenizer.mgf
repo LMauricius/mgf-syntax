@@ -1,0 +1,82 @@
+IMPORT   = mgf:import
+INCLUDE  = mgf:include
+MODULE   = mgf:module
+GROUP    = mgf:group
+
+CLASS    = mgf:out
+FIELD    = mgf:field
+SAVE     = mgf:save
+SAVED    = mgf:saved
+
+STRING   = mgf:string
+FLAGON   = mgf:flag_on
+
+SHORTEST = mgf:shortest
+
+?? = mgf:optional
+** = mgf:repeat:0+
+++ = mgf:repeat:1+
+.. = mgf:unicode_wildchar
+
+// = mgf:alternative_from
+
+Token_matching = GROUP{
+    INCLUDE:mgf:unicode_characters
+    INCLUDE:mgf:unicode_character_ranges
+    INCLUDE:mgf:unicode_categories_short
+
+    ## from https://www.unicode.org/reports/tr31/tr31-3.html#Default_id_Syntax
+    ## exception is the connector punctuation; as only one consecutive is supported
+    Id_start = Lu/Ll/Lt/Lm/Lo/Nl
+    Id_connector = Pc
+    Id_continue = Id_start/Mn/Mc/Nd/Cf
+
+    Base_mark = 0 b/o/x
+    E_mark = _ +/- Nd
+    Digit = Nd/a-f/A-F
+
+    Escape_sequence = \ n/r/t/0
+
+    Special = GROUP{
+
+        ## Parentheses
+        l_paren   = CLASS (
+        r_paren   = CLASS )
+        l_bracket = CLASS [
+        r_bracket = CLASS ]
+        l_brace   = CLASS {
+        r_brace   = CLASS }
+
+        ## Keywords
+        if    = CLASS i f
+        else  = CLASS e l s e
+        while = CLASS w h i l e
+    }
+
+    Valuable = GROUP{
+
+        ## Field names
+        Identifier = CLASS FIELD:text:STRING(Id_start **(Id_continue/(Id_connector Id_continue)))
+
+        ## Literals
+        Number = CLASS FIELD:text:STRING(??:Base_mark ++:Digit ??(. ++(_/Digit)) ??:E_mark)
+        Double_string = " FIELD:text:SHORTEST(Escape_sequence/..) "
+        Raw_string = r SAVE:term:identifier " FIELD:text:SHORTEST(..) " SAVED:term
+    }
+
+    Ignorable = GROUP{
+        Multiline_comment = / - SHORTEST:**(multiline_comment/..) - /
+        Singleline_comment = # SHORTEST:**:.. lf
+    }
+
+    Token = CLASS (//:Special)/(//:Valuable)
+    Token_list = STREAM:tokens(FIELD:tokens:Token/Ignorable)
+}
+
+
+
+Parse_tree = GROUP{
+
+}
+
+oura_file = MULTISTEP(Token_matching:Token_list)(Program)
