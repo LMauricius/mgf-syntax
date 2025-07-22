@@ -1,19 +1,19 @@
 ## Short grammar specification explanation:
 ##  '##' starts a comment, till the end of the line
-##  Double parentheses (( )) enclose a group
+##  Double parentheses ( ) enclose a group
 ##      A group can span multiple lines
 ##  Space separates items in a group
 ##  The meaning of groups is context-sensitive, depending where they are passed
 ##      i.e. the groups are parsed as-they-are
 ##      Special meanings are interpreted just-in-time
-##  Double slash // is for alternatives in a matching context
+##  Double slash / is for alternatives in a matching context
 ##      First matching is applied
 ##  All special symbols use double characters
 ##      This allows for single (, ), #, /... to work as-is for string parsing
 ##  A dot (.) or a group after an identifier with no spaces makes a macro expansion.
 ##      Multiple arguments are done by just adding them after the previous one
 ##      Macros also work as function calls, or have special meaning in a context
-##  Double equals == is for defining a macro inside a scope context
+##  Double equals = is for defining a macro inside a scope context
 ##      A macro can be without arguments, i.e. a normal expansion
 ##      A macro can be defined with arguments, like a function
 ##      The arguments become macros that are expanded only in the definition context
@@ -64,92 +64,95 @@
 
 ## We will redefine all standard macros we use as capitally-named macros
 ## for readability
-INCLUDE  == mgf.include
-SCOPE    == mgf.scope
+INCLUDE  = mgf.include
+SCOPE    = mgf.scope
 
-STORE    == mgf.store
-SAVE     == mgf.save
-STREAM   == mgf.stream
-LIST     == mgf.list
-APPEND   == mgf.append
-MATCH_SPAN == mgf.match_span
+STORE    = mgf.store
+SAVE     = mgf.save
+STREAM   = mgf.Stream
+LIST     = mgf.List
+APPEND   = mgf.append
+MatchSpan = mgf.MatchSpan
+REMATCH  = mgf.rematch
 
-LONGEST.Selection  == mgf.option.Shortest/First.Selection
-CLASS    == mgf.class
-MATCH_CLASSES_FROM    == mgf.match_classes_from
+CLASS    = mgf.class
+MATCH_CLASSES_FROM    = mgf.match_classes_from
 
-OPT == mgf.optional
-0+ == mgf.repeat.0+
-1+ == mgf.repeat.1+
-?? == mgf.unicode_wildchar
+OPT = mgf.optional
+0+ = mgf.repeat.0+
+1+ = mgf.repeat.1+
+?? = mgf.unicode_wildchar
 
-UNTIL.End.Repeated_pattern == End // ((Repeated_pattern UNTIL.End.Repeated_pattern))
-CLASS_MATCH.ClassNMatcher == CLASS.((ClassNMatcher)) ClassNMatcher
+UNTIL.End.Repeated_pattern = End / (Repeated_pattern UNTIL.End.Repeated_pattern)
+PATTERN_CLASS.Pattern = CLASS(Pattern) Pattern
+longest.Selection  = mgf.option(Shortest/First).Selection
 
-Token_matching == SCOPE((
-    INCLUDE.mgf.match_sets((                 
+Token_matching = SCOPE(
+    INCLUDE.mgf.match_sets(                 
         INCLUDE.mgf.unicode_characters       
         INCLUDE.mgf.unicode_categories_short 
-    ))
+    )
 
-    ## from https://www.unicode.org/reports/tr31/tr31-3.html#Default_id_Syntax
+    ## from https:/www.unicode.org/reports/tr31/tr31-3.html # Default id Syntax
     ## exception is the connector punctuation; as only one consecutive is supported
-    Id_start     == Lu/Ll/Lt/Lm/Lo/Nl
-    Id_connector == Pc
-    Id_continue  == Id_start || Mn/Mc/Nd/Cf
+    Id_start     = Lu/Ll/Lt/Lm/Lo/Nl
+    Id_connector = Pc
+    Id_continue  = Id_start | Mn/Mc/Nd/Cf
 
-    Base_mark == 0 (b | o | x)
-    E_mark    == _ (+/-) Nd
-    PosDigit  == 1-9/a-f/A-F
-    Digit     == Nd/a-f/A-F
+    Base_mark = 0 (b|o|x)
+    E_mark    = _ (+|-) Nd
+    PosDigit  = 1-9|a-f|A-F
+    Digit     = Nd|a-f|A-F
 
-    Escape_sequence == \ [n/r/t/0]
+    Escape_sequence = \ (n|r|t|0)
 
-    SpecialToken == CLASS_MATCH.(
-                 || CLASS_MATCH.)
-                 || CLASS_MATCH.[
-                 || CLASS_MATCH.]
-                 || CLASS_MATCH.{
-                 || CLASS_MATCH.} 
-                 || CLASS_MATCH.=
+    SpecialToken = PATTERN_CLASS.'(
+                 | PATTERN_CLASS.')
+                 | PATTERN_CLASS.'[
+                 | PATTERN_CLASS.']
+                 | PATTERN_CLASS.'{
+                 | PATTERN_CLASS.'} 
+                 | PATTERN_CLASS.'=
 
-    KeywordToken == CLASS.Keyword ((
-                        CLASS.if    i f       ||
-                        CLASS.else  e l s e   ||
-                        CLASS.while w h i l e
-                    ))
+    KeywordToken = CLASS.Keyword (
+                        PATTERN_CLASS(i f)
+                      | PATTERN_CLASS(e l s e)
+                      | PATTERN_CLASS(w h i l e)
+                    )
         
-    TextualToken == CLASS.Identifier Id_start 0+(( Id_continue || Id_connector Id_continue ))
-                 || CLASS.Number     OPT.Base_mark ((0 || PosDigit 0+.Digit)) OPT(( '. 1+((_ || Digit)) )) OPT.E_mark
-                 || CLASS.String     ((
-                        '" UNTIL.'"((Escape_sequence || ??))
-                     || r SAVE.Term.MATCH_SPAN.identifier " UNTIL((" Term))((Escape_sequence || ??))
-                    ))
+    TextualToken = CLASS.Identifier Id_start 0+(Id_continue | Id_connector Id_continue)
+                 | CLASS.Number     OPT.Base_mark (0 | PosDigit 0+.Digit) OPT('. 1+(_ | Digit)) OPT.E_mark
+                 | CLASS.String     (
+                        '" UNTIL.'"(Escape_sequence | ??)
+                     | r SAVE.Term.MatchSpan.identifier '" UNTIL('" REMATCH.Term)(Escape_sequence | ??)
+                    )
 
-    NewlineToken == CLASS.Newline 1+(( ## Count multiple empty lines as a single newline
-                    LF              ## Normal newline
-                 || '# UNTIL.LF.??   ## Singleline comment
-                ))
+    NewlineToken = CLASS.Newline 1+( ## Count multiple empty lines as a single newline
+                       LF              ## Normal newline
+                    | '# UNTIL.LF.??   ## Singleline comment
+                   )
 
-    Ignorable == SP/CR/TAB           ## Space
-              || '/ - UNTIL((- '/)).?? ## Multiline comment
+    Ignorable = SP | CR | TAB       ## Space
+              | '/ - UNTIL(- '/).?? ## Multiline comment
 
-    Token == STORE.span.MATCH_SPAN.LONGEST((SpecialToken || KeywordToken || TextualToken || NewlineToken))
-    Token_stream == STREAM.tokens.0+((APPEND.tokens.Token || Ignorable))
-))
+    Token = STORE.span.MatchSpan.longest(SpecialToken | KeywordToken | TextualToken | NewlineToken)
+    Token_stream = STREAM.tokens.0+(APPEND.tokens.Token | Ignorable)
+)
 
 
 
-Structure_matching == SCOPE((
+Structure_matching = SCOPE(
     INCLUDE.MATCH_CLASSES_FROM.Token_matching
 
-    Expression  == Number
-                // String
-                // ( Expression )
-    VariableDeclaration == STORE.varName.Identifier = STORE.expr.Expression
-    FunctionCall == STORE.funcName.Identifier STORE.args.LIST ( APPEND.args.Expression 0+.((, APPEND.args.Expression)) )
-    Statement == VariableDeclaration // FunctionCall
-    Program == CLASS.File 1+.((Statement Newline)) ## Todo: finish program specification
-))
+    Expression  = Number
+                / String
+                / ( Expression )
+    VariableDeclaration = STORE.varName.Identifier = STORE.expr.Expression
+    FunctionCall = STORE.funcName.Identifier STORE.args.LIST ( APPEND.args.Expression 0+.(, APPEND.args.Expression) )
+    Statement = VariableDeclaration / FunctionCall
+    Program = CLASS.File 1+.(Statement Newline) ## Todo: finish program specification
 
-Program_file == MULTISTEP((Token_matching.Token_stream))((Program))
+    IfStatement = if '( STORE.condition.Expression ') : STORE.body.Program OPT(else STORE.alternative.Program)
+)
+
+Program_file = MULTISTEP(Token_matching.Token_stream)(Program)
