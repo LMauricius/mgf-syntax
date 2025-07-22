@@ -1,82 +1,155 @@
-IMPORT   = mgf:import
-INCLUDE  = mgf:include
-MODULE   = mgf:module
-GROUP    = mgf:group
+## Short grammar specification explanation:
+##  '##' starts a comment, till the end of the line
+##  Double parentheses (( )) enclose a group
+##      A group can span multiple lines
+##  Space separates items in a group
+##  The meaning of groups is context-sensitive, depending where they are passed
+##      i.e. the groups are parsed as-they-are
+##      Special meanings are interpreted just-in-time
+##  Double slash // is for alternatives in a matching context
+##      First matching is applied
+##  All special symbols use double characters
+##      This allows for single (, ), #, /... to work as-is for string parsing
+##  A dot (.) or a group after an identifier with no spaces makes a macro expansion.
+##      Multiple arguments are done by just adding them after the previous one
+##      Macros also work as function calls, or have special meaning in a context
+##  Double equals == is for defining a macro inside a scope context
+##      A macro can be without arguments, i.e. a normal expansion
+##      A macro can be defined with arguments, like a function
+##      The arguments become macros that are expanded only in the definition context
+##      If the right side has multiple items, they are treated as a group
+##      An alias is defined with no arguments, and a single item as the expression
+##      An alias can be called with arguments, which are passed to the aliased macro
+##
+## Different contexts are yet to be better explained
+##  
+## Built-in macros:
+##  mgf.Args... - The standard scope - expands into Args... from the standard
+##      The other arguments are treated as args for the recursive expansion
+##      mgf scope contains:
+##          include.Scope - expands into all macros inside the scope
+##          scope.Group - expands into a new macro; expanding that macro accesses the scope
+##          store.fieldName.Group - In a parsing and object context:
+##              parses the group and stores its object into the field of this object context
+##          save.fieldName.Group - In a parsing context:
+##              parses the group and stores its object into the field of the expansion context
+##          stream.fieldName.Group - makes the object context a stream context
+##              stores objects appended to the fieldName field inside the group into the stream context
+##          list - returns a new list value
+##          match_span.Group - In a parsing context:
+##              matches the group
+##              and returns a span of the input stream,
+##              used usually to be saved or appended into a field
+##          append.fieldName.Value - Appends the value to the list valued field fieldName
+##          
+##          optional.Group - Matches either the group or nothing
+##          repeat.Count.Group - Matches the Count repetitions of the Group
+##              Count can be:
+##                  a number,
+##                  number+ (at least number repetitions, maybe infinite)
+##                  minNumber+-maxNumber (between minNumber and maxNumber repetitions)
+##          
+##          match_sets.Scope - expands into a new scope containing:
+##              the macros from the Scope
+##              match set macros: macro1/macro2, like brackets in regex
+##              match range macros, macro1-macro2, if a range of values has meaning in this parsing context
+##              Example: a-z/A-Z/Nd for common letters and decimal numbers
+##          
+##          unicode_characters - Scope of single characters macros, as well as the control code abbreviations (LF, CR, SP)
+##          unicode_categories_short - Scope of category macros identified by two letters, like Lu for Letter,uppercase
+##          unicode_wildchar - Any unicode character
+##          
+##          class.Name - Introduces a new class, applied to the object context
+##          match_classes_from.Scope - Expands into a scope, containing matching macros by classes used in the Scope
 
-CLASS    = mgf:out
-FIELD    = mgf:field
-SAVE     = mgf:save
-SAVED    = mgf:saved
+## We will redefine all standard macros we use as capitally-named macros
+## for readability
+INCLUDE  == mgf.include
+SCOPE    == mgf.scope
 
-STRING   = mgf:string
-FLAGON   = mgf:flag_on
+STORE    == mgf.store
+SAVE     == mgf.save
+STREAM   == mgf.stream
+LIST     == mgf.list
+APPEND   == mgf.append
+MATCH_SPAN == mgf.match_span
 
-SHORTEST = mgf:shortest
+LONGEST.Selection  == mgf.option.Shortest/First.Selection
+CLASS    == mgf.class
+MATCH_CLASSES_FROM    == mgf.match_classes_from
 
-?? = mgf:optional
-** = mgf:repeat:0+
-++ = mgf:repeat:1+
-.. = mgf:unicode_wildchar
+OPT == mgf.optional
+0+ == mgf.repeat.0+
+1+ == mgf.repeat.1+
+?? == mgf.unicode_wildchar
 
-// = mgf:alternative_from
+UNTIL.End.Repeated_pattern == End // ((Repeated_pattern UNTIL.End.Repeated_pattern))
+CLASS_MATCH.ClassNMatcher == CLASS.((ClassNMatcher)) ClassNMatcher
 
-Token_matching = GROUP{
-    INCLUDE:mgf:unicode_characters
-    INCLUDE:mgf:unicode_character_ranges
-    INCLUDE:mgf:unicode_categories_short
+Token_matching == SCOPE((
+    INCLUDE.mgf.match_sets((                 
+        INCLUDE.mgf.unicode_characters       
+        INCLUDE.mgf.unicode_categories_short 
+    ))
 
     ## from https://www.unicode.org/reports/tr31/tr31-3.html#Default_id_Syntax
     ## exception is the connector punctuation; as only one consecutive is supported
-    Id_start = Lu/Ll/Lt/Lm/Lo/Nl
-    Id_connector = Pc
-    Id_continue = Id_start/Mn/Mc/Nd/Cf
+    Id_start     == Lu/Ll/Lt/Lm/Lo/Nl
+    Id_connector == Pc
+    Id_continue  == Id_start || Mn/Mc/Nd/Cf
 
-    Base_mark = 0 b/o/x
-    E_mark = _ +/- Nd
-    Digit = Nd/a-f/A-F
+    Base_mark == 0 (b | o | x)
+    E_mark    == _ (+/-) Nd
+    PosDigit  == 1-9/a-f/A-F
+    Digit     == Nd/a-f/A-F
 
-    Escape_sequence = \ n/r/t/0
+    Escape_sequence == \ [n/r/t/0]
 
-    Special = GROUP{
+    SpecialToken == CLASS_MATCH.(
+                 || CLASS_MATCH.)
+                 || CLASS_MATCH.[
+                 || CLASS_MATCH.]
+                 || CLASS_MATCH.{
+                 || CLASS_MATCH.} 
+                 || CLASS_MATCH.=
 
-        ## Parentheses
-        l_paren   = CLASS (
-        r_paren   = CLASS )
-        l_bracket = CLASS [
-        r_bracket = CLASS ]
-        l_brace   = CLASS {
-        r_brace   = CLASS }
+    KeywordToken == CLASS.Keyword ((
+                        CLASS.if    i f       ||
+                        CLASS.else  e l s e   ||
+                        CLASS.while w h i l e
+                    ))
+        
+    TextualToken == CLASS.Identifier Id_start 0+(( Id_continue || Id_connector Id_continue ))
+                 || CLASS.Number     OPT.Base_mark ((0 || PosDigit 0+.Digit)) OPT(( '. 1+((_ || Digit)) )) OPT.E_mark
+                 || CLASS.String     ((
+                        '" UNTIL.'"((Escape_sequence || ??))
+                     || r SAVE.Term.MATCH_SPAN.identifier " UNTIL((" Term))((Escape_sequence || ??))
+                    ))
 
-        ## Keywords
-        if    = CLASS i f
-        else  = CLASS e l s e
-        while = CLASS w h i l e
-    }
+    NewlineToken == CLASS.Newline 1+(( ## Count multiple empty lines as a single newline
+                    LF              ## Normal newline
+                 || '# UNTIL.LF.??   ## Singleline comment
+                ))
 
-    Valuable = GROUP{
+    Ignorable == SP/CR/TAB           ## Space
+              || '/ - UNTIL((- '/)).?? ## Multiline comment
 
-        ## Field names
-        Identifier = CLASS FIELD:text:STRING(Id_start **(Id_continue/(Id_connector Id_continue)))
-
-        ## Literals
-        Number = CLASS FIELD:text:STRING(??:Base_mark ++:Digit ??(. ++(_/Digit)) ??:E_mark)
-        Double_string = " FIELD:text:SHORTEST(Escape_sequence/..) "
-        Raw_string = r SAVE:term:identifier " FIELD:text:SHORTEST(..) " SAVED:term
-    }
-
-    Ignorable = GROUP{
-        Multiline_comment = / - SHORTEST:**(multiline_comment/..) - /
-        Singleline_comment = # SHORTEST:**:.. lf
-    }
-
-    Token = CLASS (//:Special)/(//:Valuable)
-    Token_list = STREAM:tokens(FIELD:tokens:Token/Ignorable)
-}
+    Token == STORE.span.MATCH_SPAN.LONGEST((SpecialToken || KeywordToken || TextualToken || NewlineToken))
+    Token_stream == STREAM.tokens.0+((APPEND.tokens.Token || Ignorable))
+))
 
 
 
-Parse_tree = GROUP{
+Structure_matching == SCOPE((
+    INCLUDE.MATCH_CLASSES_FROM.Token_matching
 
-}
+    Expression  == Number
+                // String
+                // ( Expression )
+    VariableDeclaration == STORE.varName.Identifier = STORE.expr.Expression
+    FunctionCall == STORE.funcName.Identifier STORE.args.LIST ( APPEND.args.Expression 0+.((, APPEND.args.Expression)) )
+    Statement == VariableDeclaration // FunctionCall
+    Program == CLASS.File 1+.((Statement Newline)) ## Todo: finish program specification
+))
 
-oura_file = MULTISTEP(Token_matching:Token_list)(Program)
+Program_file == MULTISTEP((Token_matching.Token_stream))((Program))
