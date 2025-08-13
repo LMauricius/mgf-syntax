@@ -6,7 +6,7 @@
 #   The meaning of groups is context-sensitive, depending where they are passed
 #       i.e. the groups are parsed as-they-are
 #       Special meanings are interpreted just-in-time
-#   Slash / is for alternatives in a matching context
+#   Slash / or pipe | are for alternatives in a matching context
 #       First matching is applied when using /, all matches are applied when using |
 #   A dot . or a group after an identifier with no spaces makes a macro expansion.
 #       Multiple arguments are done by just adding them after the previous one
@@ -35,8 +35,8 @@
 #       mgf scope contains:
 #           include.Scope - expands into all macros inside the scope
 #           scope.Group - expands into a new macro; expanding that macro accesses the scope
-#           store.fieldName.Group - In a parsing and object context:
-#               parses the group and stores its object into the field of this object context
+#           field.fieldName.Group - In a parsing and object context:
+#               parses the group and stores its object into a field of this object context
 #           save.fieldName.Group - In a parsing context:
 #               parses the group and stores its object into the field of the expansion context
 #           stream.fieldName.Group - makes the object context a stream context
@@ -46,7 +46,7 @@
 #               matches the group
 #               and returns a span of the input stream,
 #               used usually to be saved or appended into a field
-#           append.fieldName.Value - Appends the value to the list valued field fieldName
+#           item.fieldName.Value - Appends the value to the list valued field fieldName
 #           
 #           optional.Group - Matches either the group or nothing
 #           repeat.Count.Group - Matches the Count repetitions of the Group
@@ -68,35 +68,19 @@
 #           class.Name - Introduces a new class, applied to the object context
 #           match_classes_from.Scope - Expands into a scope, containing matching macros by classes used in the Scope
 
-## We will redefine all standard macros we use as capitally-named macros
-## for readability
-INCLUDE  = mgf.include
-SCOPE    = mgf.scope
-
-STORE    = mgf.store
-SAVE     = mgf.save
-STREAM   = mgf.Stream
-LIST     = mgf.List
-APPEND   = mgf.append
-MatchSpan = mgf.MatchSpan
-REMATCH  = mgf.rematch
-
-CLASS    = mgf.class
-MATCH_CLASSES_FROM    = mgf.match_classes_from
-
 OPT = mgf.optional
 0+ = mgf.repeat.0+
 1+ = mgf.repeat.1+
 ?? = mgf.unicode_wildchar
 
 UNTIL.End.Repeated_pattern = End / (Repeated_pattern UNTIL.End.Repeated_pattern)
-PATTERN_CLASS.Pattern = CLASS(Pattern) Pattern
+PATTERN_CLASS.Pattern = mgf.class(Pattern) Pattern
 LONGEST.Selection  = mgf.option(Shortest/First).Selection
 
-Token_matching = SCOPE(
-    INCLUDE.mgf.match_sets(                 
-        INCLUDE.mgf.unicode_characters       
-        INCLUDE.mgf.unicode_categories_short 
+Token_matching = mgf.scope(
+    mgf.include.mgf.match_sets(                 
+        mgf.include.mgf.unicode_characters       
+        mgf.include.mgf.unicode_categories_short 
     )
 
     ## from https:/www.unicode.org/reports/tr31/tr31-3.html # Default id Syntax
@@ -120,20 +104,20 @@ Token_matching = SCOPE(
                  | PATTERN_CLASS.'} 
                  | PATTERN_CLASS.'=
 
-    KeywordToken = CLASS.Keyword (
+    KeywordToken = mgf.class.Keyword (
                         PATTERN_CLASS(i f)
                       | PATTERN_CLASS(e l s e)
                       | PATTERN_CLASS(w h i l e)
                     )
         
-    TextualToken = CLASS.Identifier Id_start 0+(Id_continue | Id_connector Id_continue)
-                 | CLASS.Number     OPT.Base_mark (0 | PosDigit 0+.Digit) OPT('. 1+(_ | Digit)) OPT.E_mark
-                 | CLASS.String     (
+    TextualToken = mgf.class.Identifier Id_start 0+(Id_continue | Id_connector Id_continue)
+                 | mgf.class.Number     OPT.Base_mark (0 | PosDigit 0+.Digit) OPT('. 1+(_ | Digit)) OPT.E_mark
+                 | mgf.class.String     (
                         '" UNTIL.'"(Escape_sequence | ??)
-                     | r SAVE.Term.MatchSpan.identifier '" UNTIL('" REMATCH.Term)(Escape_sequence | ??)
+                     | r mgf.save.Term.mgf.MatchSpan.identifier '" UNTIL('" mgf.rematch.Term)(Escape_sequence | ??)
                     )
 
-    NewlineToken = CLASS.Newline 1+( ## Count multiple empty lines as a single newline
+    NewlineToken = mgf.class.Newline 1+( ## Count multiple empty lines as a single newline
                        LF              ## Normal newline
                     | '# UNTIL.LF.??   ## Singleline comment
                    )
@@ -141,24 +125,24 @@ Token_matching = SCOPE(
     Ignorable = SP | CR | TAB       ## Space
               | '/ - UNTIL(- '/).?? ## Multiline comment
 
-    Token = STORE.span.MatchSpan.LONGEST(SpecialToken | KeywordToken | TextualToken | NewlineToken)
-    Token_stream = STREAM.tokens.0+(APPEND.tokens.Token | Ignorable)
+    Token = mgf.field.span.mgf.MatchSpan.LONGEST(SpecialToken | KeywordToken | TextualToken | NewlineToken)
+    Token_stream = mgf.stream.tokens.0+(mgf.item.tokens.Token | Ignorable)
 )
 
 
 
-Structure_matching = SCOPE(
-    INCLUDE.MATCH_CLASSES_FROM.Token_matching
+Structure_matching = mgf.scope(
+    mgf.include.mgf.match_classes_from.Token_matching
 
     Expression  = Number
                 / String
                 / ( Expression )
-    VariableDeclaration = STORE.varName.Identifier = STORE.expr.Expression
-    FunctionCall = STORE.funcName.Identifier STORE.args.LIST ( APPEND.args.Expression 0+.(, APPEND.args.Expression) )
+    VariableDeclaration = mgf.field.varName.Identifier = mgf.field.expr.Expression
+    FunctionCall = mgf.field.funcName.Identifier mgf.field.args.mgf.list ( mgf.item.args.Expression 0+.(, mgf.item.args.Expression) )
     Statement = VariableDeclaration / FunctionCall
-    Program = CLASS.File 1+.(Statement Newline) ## Todo: finish program specification
+    Program = mgf.class.File 1+.(Statement Newline) ## Todo: finish program specification
 
-    IfStatement = if '( STORE.condition.Expression ') : STORE.body.Program OPT(else STORE.alternative.Program)
+    IfStatement = if '( mgf.field.condition.Expression ') : mgf.field.body.Program OPT(else mgf.field.alternative.Program)
 )
 
 Program_file = MULTISTEP(Token_matching.Token_stream)(Program)
