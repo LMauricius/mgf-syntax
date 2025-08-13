@@ -1,66 +1,72 @@
-## Short grammar specification explanation:
-##  '##' starts a comment, till the end of the line
-##  Double parentheses ( ) enclose a group
-##      A group can span multiple lines
-##  Space separates items in a group
-##  The meaning of groups is context-sensitive, depending where they are passed
-##      i.e. the groups are parsed as-they-are
-##      Special meanings are interpreted just-in-time
-##  Double slash / is for alternatives in a matching context
-##      First matching is applied
-##  All special symbols use double characters
-##      This allows for single (, ), #, /... to work as-is for string parsing
-##  A dot (.) or a group after an identifier with no spaces makes a macro expansion.
-##      Multiple arguments are done by just adding them after the previous one
-##      Macros also work as function calls, or have special meaning in a context
-##  Double equals = is for defining a macro inside a scope context
-##      A macro can be without arguments, i.e. a normal expansion
-##      A macro can be defined with arguments, like a function
-##      The arguments become macros that are expanded only in the definition context
-##      If the right side has multiple items, they are treated as a group
-##      An alias is defined with no arguments, and a single item as the expression
-##      An alias can be called with arguments, which are passed to the aliased macro
-##
-## Different contexts are yet to be better explained
-##  
-## Built-in macros:
-##  mgf.Args... - The standard scope - expands into Args... from the standard
-##      The other arguments are treated as args for the recursive expansion
-##      mgf scope contains:
-##          include.Scope - expands into all macros inside the scope
-##          scope.Group - expands into a new macro; expanding that macro accesses the scope
-##          store.fieldName.Group - In a parsing and object context:
-##              parses the group and stores its object into the field of this object context
-##          save.fieldName.Group - In a parsing context:
-##              parses the group and stores its object into the field of the expansion context
-##          stream.fieldName.Group - makes the object context a stream context
-##              stores objects appended to the fieldName field inside the group into the stream context
-##          list - returns a new list value
-##          match_span.Group - In a parsing context:
-##              matches the group
-##              and returns a span of the input stream,
-##              used usually to be saved or appended into a field
-##          append.fieldName.Value - Appends the value to the list valued field fieldName
-##          
-##          optional.Group - Matches either the group or nothing
-##          repeat.Count.Group - Matches the Count repetitions of the Group
-##              Count can be:
-##                  a number,
-##                  number+ (at least number repetitions, maybe infinite)
-##                  minNumber+-maxNumber (between minNumber and maxNumber repetitions)
-##          
-##          match_sets.Scope - expands into a new scope containing:
-##              the macros from the Scope
-##              match set macros: macro1/macro2, like brackets in regex
-##              match range macros, macro1-macro2, if a range of values has meaning in this parsing context
-##              Example: a-z/A-Z/Nd for common letters and decimal numbers
-##          
-##          unicode_characters - Scope of single characters macros, as well as the control code abbreviations (LF, CR, SP)
-##          unicode_categories_short - Scope of category macros identified by two letters, like Lu for Letter,uppercase
-##          unicode_wildchar - Any unicode character
-##          
-##          class.Name - Introduces a new class, applied to the object context
-##          match_classes_from.Scope - Expands into a scope, containing matching macros by classes used in the Scope
+# Short grammar specification explanation:
+#   '#' starts a comment, till the end of the line
+#   Parentheses ( ) enclose a group
+#       A group can span multiple lines
+#   Space separates items in a group
+#   The meaning of groups is context-sensitive, depending where they are passed
+#       i.e. the groups are parsed as-they-are
+#       Special meanings are interpreted just-in-time
+#   Slash / is for alternatives in a matching context
+#       First matching is applied when using /, all matches are applied when using |
+#   A dot . or a group after an identifier with no spaces makes a macro expansion.
+#       Multiple arguments are done by just adding them after the previous one
+#       Macros also work as function calls, or have special meaning in a context
+#   Equals = is for defining a macro inside a scope context
+#       A macro can be without arguments, called a pure expansion
+#       A macro can be defined with arguments, like a function
+#       The arguments become new macros that exist only in the definition context
+#       If the right side has multiple items, they are treated as a group
+#       If the right side has only 1 item, the macro expands into that item
+#       An alias is defined with no arguments, and a single item as the expression
+#       An alias can be called with arguments, which are passed to the aliased macro
+#   
+# Interpretation is context-sensitive. Multiple contexts can be active simultaneously:
+#    - Matching context - has properties related to input matching
+#    - Scope context - enables defining and including new macros
+#    - Definition context - used in right-hand-sides of macro definitions
+#    - Object context - modifies a value that gets defined by interpretation and then returned
+#    - Parsing context - contains an input stream ducontains an input stream during parsing
+#    - Expansion context - created during macro expansion, child context of the context in which the macro was expanded
+#    - etc.
+#   
+# Built-in macros:
+#   mgf.Args... - The standard scope - expands into Args... from the standard
+#       The other arguments are treated as args for the recursive expansion
+#       mgf scope contains:
+#           include.Scope - expands into all macros inside the scope
+#           scope.Group - expands into a new macro; expanding that macro accesses the scope
+#           store.fieldName.Group - In a parsing and object context:
+#               parses the group and stores its object into the field of this object context
+#           save.fieldName.Group - In a parsing context:
+#               parses the group and stores its object into the field of the expansion context
+#           stream.fieldName.Group - makes the object context a stream context
+#               stores objects appended to the fieldName field inside the group into the stream context
+#           list - returns a new list value
+#           match_span.Group - In a parsing context:
+#               matches the group
+#               and returns a span of the input stream,
+#               used usually to be saved or appended into a field
+#           append.fieldName.Value - Appends the value to the list valued field fieldName
+#           
+#           optional.Group - Matches either the group or nothing
+#           repeat.Count.Group - Matches the Count repetitions of the Group
+#               Count can be:
+#                   a number,
+#                   number+ (at least number repetitions, maybe infinite)
+#                   minNumber+-maxNumber (between minNumber and maxNumber repetitions)
+#           
+#           match_sets.Scope - expands into a new scope containing:
+#               the macros from the Scope
+#               match set macros: macro1/macro2, like brackets in regex
+#               match range macros, macro1-macro2, if a range of values has meaning in this parsing context
+#               Example: a-z/A-Z/Nd for common letters and decimal numbers
+#           
+#           unicode_characters - Scope of single characters macros, as well as the control code abbreviations (LF, CR, SP)
+#           unicode_categories_short - Scope of category macros identified by two letters, like Lu for Letter,uppercase
+#           unicode_wildchar - Any unicode character
+#           
+#           class.Name - Introduces a new class, applied to the object context
+#           match_classes_from.Scope - Expands into a scope, containing matching macros by classes used in the Scope
 
 ## We will redefine all standard macros we use as capitally-named macros
 ## for readability
@@ -85,7 +91,7 @@ OPT = mgf.optional
 
 UNTIL.End.Repeated_pattern = End / (Repeated_pattern UNTIL.End.Repeated_pattern)
 PATTERN_CLASS.Pattern = CLASS(Pattern) Pattern
-longest.Selection  = mgf.option(Shortest/First).Selection
+LONGEST.Selection  = mgf.option(Shortest/First).Selection
 
 Token_matching = SCOPE(
     INCLUDE.mgf.match_sets(                 
@@ -135,7 +141,7 @@ Token_matching = SCOPE(
     Ignorable = SP | CR | TAB       ## Space
               | '/ - UNTIL(- '/).?? ## Multiline comment
 
-    Token = STORE.span.MatchSpan.longest(SpecialToken | KeywordToken | TextualToken | NewlineToken)
+    Token = STORE.span.MatchSpan.LONGEST(SpecialToken | KeywordToken | TextualToken | NewlineToken)
     Token_stream = STREAM.tokens.0+(APPEND.tokens.Token | Ignorable)
 )
 
