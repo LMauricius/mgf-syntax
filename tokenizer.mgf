@@ -6,8 +6,8 @@
 #   The meaning of groups is context-sensitive, depending where they are passed
 #       i.e. the groups are parsed as-they-are
 #       Special meanings are interpreted just-in-time
-#   Slash / or pipe / are for alternatives in a matching context
-#       First matching is applied when using /, all matches are applied when using /
+#   Slash | or pipe | are for alternatives in a matching context
+#       First matching is applied when using |, all matches are applied when using |
 #   A dot . or a group after an identifier with no spaces makes a macro expansion.
 #       Multiple arguments are done by just adding them after the previous one
 #       Macros also work as function calls, or have special meaning in a context
@@ -57,9 +57,9 @@
 #           
 #           match_sets.Scope - expands into a new scope containing:
 #               the macros from the Scope
-#               match set macros: macro1/macro2, like brackets in regex
+#               match set macros: macro1|macro2, like brackets in regex
 #               match range macros, macro1-macro2, if a range of values has meaning in this parsing context
-#               Example: a-z/A-Z/Nd for common letters and decimal numbers
+#               Example: a-z|A-Z|Nd for common letters and decimal numbers
 #           
 #           unicode_characters - Scope of single characters macros, as well as the control code abbreviations (LF, CR, SP)
 #           unicode_categories_short - Scope of category macros identified by two letters, like Lu for Letter,uppercase
@@ -87,7 +87,7 @@
 
 *Pattern\until(End) =  <first>(
                             End
-                          / (Pattern *Pattern\until(End))
+                          | (Pattern *Pattern\until(End))
                         )
 
 # --- Tokenizer spec -------------------------------------------------------------------------------
@@ -105,65 +105,65 @@
 
     # from https:/www.unicode.org/reports/tr31/tr31-3.html - Default id Syntax
     # exception is the connector punctuation; as only one consecutive is supported
-    Id_start     = Lu/Ll/Lt/Lm/Lo/Nl
+    Id_start     = Lu|Ll|Lt|Lm|Lo|Nl
     Id_connector = Pc
-    Id_continue  = Id_start/Mn/Mc/Nd/Cf
+    Id_continue  = Id_start|Mn|Mc|Nd|Cf
 
-    Base_mark  = 0 (b/o/x)
+    Base_mark  = 0 (b|o|x)
     E_mark     = _ ('+'/'-') Nd
-    StartDigit = 1-9/a-f/A-F
-    Digit      = 0-9/a-f/A-F
+    StartDigit = 1-9|a-f|A-F
+    Digit      = 0-9|a-f|A-F
 
-    Escape_sequence = '\' (n/r/t/0)
+    Escape_sequence = '\' (n|r|t|0)
 
     SpecialToken = \class_word="'('"
-                 / \class_word="')'"
-                 / \class_word="'['"
-                 / \class_word="']'"
-                 / \class_word="'{'"
-                 / \class_word="'}'"
-                 / \class_word="'='"
+                 | \class_word="')'"
+                 | \class_word="'['"
+                 | \class_word="']'"
+                 | \class_word="'{'"
+                 | \class_word="'}'"
+                 | \class_word="'='"
 
     KeywordToken = \class=Keyword (
                         \class_word="if"
-                      / \class_word="else"
-                      / \class_word="while"
+                      | \class_word="else"
+                      | \class_word="while"
                     )
         
     TextualToken =  \class=Identifier (
-                        Id_start *( Id_continue / Id_connector Id_continue )
+                        Id_start *( Id_continue | Id_connector Id_continue )
                     )
-                  / \class=Number     (
+                  | \class=Number     (
                         ?Base_mark
-                        (0 / StartDigit *Digit)
-                        ?('.' +(_ / Digit))
+                        (0 | StartDigit *Digit)
+                        ?('.' +(_ | Digit))
                         ?E_mark
                     )
-                  / \class=String     (
-                        '"' *(Escape_sequence / __)\until('"')
+                  | \class=String     (
+                        '"' *(Escape_sequence | __)\until('"')
                     )
-                  / \class=RawString  (
+                  | \class=RawString  (
                         r (identifier \temp[Term]:match_span) '"'
                         *__\until('"' Term)
                     )
 
     NewlineToken =  \class=Newline +(    # Count multiple empty lines as a single newline
                         LF                    # Normal newline
-                      / '/' '/' *__\until(LF) # Singleline comment
+                      | '/' '/' *__\until(LF) # Singleline comment
                     )
 
-    MultilineComment = '/' '*' *(<first>(MultilineComment / __))\until('*' '/')
+    MultilineComment = '/' '*' *(<first>(MultilineComment | __))\until('*' '/')
 
-    Ignorable = SP / CR / TAB                         # Space
-              / MultilineComment # Multiline comment
+    Ignorable = SP | CR | TAB                         # Space
+              | MultilineComment # Multiline comment
 
     Token = \class=Token \field[span]:match_span (
-        SpecialToken / KeywordToken / TextualToken / NewlineToken
+        SpecialToken | KeywordToken | TextualToken | NewlineToken
     )
     Token_stream =  \value:list *(
-                        <(longest/first)>(
+                        <(longest|first)>(
                             \value\item:Token
-                          / Ignorable
+                          | Ignorable
                         )
                     )
 )
@@ -174,8 +174,8 @@
     \include(\match_classes_from(tokenizer_Token))
 
     Expression  = Number
-                / String
-                / '(' Expression ')'
+                | String
+                | '(' Expression ')'
     VariableDeclaration =   (
                                 \field[varName]:Identifier
                                 '='
@@ -188,7 +188,7 @@
                             *(',' \item[args]:Expression)
                         )
                     )
-    Statement = VariableDeclaration / FunctionCall / IfStatement
+    Statement = VariableDeclaration | FunctionCall | IfStatement
 
     IfStatement = (
                     if '(' \field[condition]:Expression ')'
