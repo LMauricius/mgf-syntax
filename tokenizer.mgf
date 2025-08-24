@@ -6,8 +6,8 @@
 #   The meaning of groups is context-sensitive, depending where they are passed
 #       i.e. the groups are parsed as-they-are
 #       Special meanings are interpreted just-in-time
-#   Slash / or pipe | are for alternatives in a matching context
-#       First matching is applied when using /, all matches are applied when using |
+#   Slash / or pipe / are for alternatives in a matching context
+#       First matching is applied when using /, all matches are applied when using /
 #   A dot . or a group after an identifier with no spaces makes a macro expansion.
 #       Multiple arguments are done by just adding them after the previous one
 #       Macros also work as function calls, or have special meaning in a context
@@ -30,7 +30,7 @@
 #    - etc.
 #   
 # Built-in macros:
-#   mgf.Args... - The standard scope - expands into Args... from the standard
+#   st_Args... - The standard scope - expands into Args... from the standard
 #       The other arguments are treated as args for the recursive expansion
 #       mgf scope contains:
 #           include.Scope - expands into all macros inside the scope
@@ -68,81 +68,127 @@
 #           class.Name - Introduces a new class, applied to the object context
 #           match_classes_from.Scope - Expands into a scope, containing matching macros by classes used in the Scope
 
-OPT = mgf.optional
-0+ = mgf.repeat.0+
-1+ = mgf.repeat.1+
-?? = mgf.unicode_wildchar
+# --- Modules --------------------------------------------------------------------------------------
+\import_as [Prefix]st_ [Module]standard_
 
-UNTIL.End.Repeated_pattern = End / (Repeated_pattern UNTIL.End.Repeated_pattern)
-PATTERN_CLASS.Pattern = mgf.class(Pattern) Pattern
-LONGEST.Selection  = mgf.option(Shortest/First).Selection
+# --- Macros and aliases ---------------------------------------------------------------------------
+\opt[Pattern] = \st_optional(Pattern)
+\**[Pattern] = \st_repeat [Count]0+ [Pattern]Pattern
+\++[Pattern] = \st_repeat [Count]1+ [Pattern]Pattern
+?? = st_unicode_wildchar
 
-Token_matching = mgf.scope(
-    mgf.include.mgf.match_sets(                 
-        mgf.include.mgf.unicode_characters       
-        mgf.include.mgf.unicode_categories_short 
-    )
+\until[End][Pattern] =  \st_choose [Priority]FIRST [Options](
+                            End
+                          / (Pattern \until [End]End [Pattern]Pattern)
+                        )
+\class_word[Pattern] = \st_class(Pattern) \st_unicode_string(Pattern)
+\first[Options]  = \st_choose [Priority](st_first) [Options]Options
 
-    ## from https:/www.unicode.org/reports/tr31/tr31-3.html # Default id Syntax
-    ## exception is the connector punctuation; as only one consecutive is supported
+# --- Tokenizer spec -------------------------------------------------------------------------------
+\scope [Prefix]Tokenizer_ [Containing](
+    \include(st_unicode_characters_)
+    \include(st_unicode_categories_short_)
+
+    \include(\st_match_sets(
+        \include(st_unicode_characters_)
+        \include(st_unicode_categories_short_)
+    ))
+
+    # from https:/www.unicode.org/reports/tr31/tr31-3.html - Default id Syntax
+    # exception is the connector punctuation; as only one consecutive is supported
     Id_start     = Lu/Ll/Lt/Lm/Lo/Nl
     Id_connector = Pc
-    Id_continue  = Id_start | Mn/Mc/Nd/Cf
+    Id_continue  = Id_start/Mn/Mc/Nd/Cf
 
-    Base_mark = 0 (b|o|x)
-    E_mark    = _ (+|-) Nd
-    PosDigit  = 1-9|a-f|A-F
-    Digit     = Nd|a-f|A-F
+    Base_mark  = 0 (b/o/x)
+    E_mark     = _ (+/-) Nd
+    StartDigit = 1-9/a-f/A-F
+    Digit      = 0-9/a-f/A-F
 
-    Escape_sequence = \ (n|r|t|0)
+    Escape_sequence = '\' n/r/t/0
 
-    SpecialToken = PATTERN_CLASS.'(
-                 | PATTERN_CLASS.')
-                 | PATTERN_CLASS.'[
-                 | PATTERN_CLASS.']
-                 | PATTERN_CLASS.'{
-                 | PATTERN_CLASS.'} 
-                 | PATTERN_CLASS.'=
+    SpecialToken = \class_word('(')
+                 / \class_word(')')
+                 / \class_word('[')
+                 / \class_word(']')
+                 / \class_word('{')
+                 / \class_word('}')
+                 / \class_word('=')
 
-    KeywordToken = mgf.class.Keyword (
-                        PATTERN_CLASS(i f)
-                      | PATTERN_CLASS(e l s e)
-                      | PATTERN_CLASS(w h i l e)
+    KeywordToken = \st_class(Keyword) (
+                        \class_word(if)
+                      / \class_word(else)
+                      / \class_word(while)
                     )
         
-    TextualToken = mgf.class.Identifier Id_start 0+(Id_continue | Id_connector Id_continue)
-                 | mgf.class.Number     OPT.Base_mark (0 | PosDigit 0+.Digit) OPT('. 1+(_ | Digit)) OPT.E_mark
-                 | mgf.class.String     (
-                        '" UNTIL.'"(Escape_sequence | ??)
-                     | r mgf.save.Term.mgf.MatchSpan.identifier '" UNTIL('" mgf.rematch.Term)(Escape_sequence | ??)
+    TextualToken =  \st_class(Identifier) (
+                        Id_start \**( Id_continue / Id_connector Id_continue )
+                    )
+                  / \st_class(Number)     (
+                        \opt(Base_mark)
+                        (0 / StartDigit \**(Digit))
+                        \opt(. \++(_ / Digit))
+                        \opt(E_mark)
+                    )
+                  / \st_class(String)     (
+                        '"' \until [Pattern](Escape_sequence / ??) [End]'"'
+                    )
+                  / \st_class(RawString)  (
+                        r (identifier \st_temp [Name]Term [Pattern]st_match_span) '"'
+                        \until [Pattern]?? [End](
+                            '"' Term
+                        )
                     )
 
-    NewlineToken = mgf.class.Newline 1+( ## Count multiple empty lines as a single newline
-                       LF              ## Normal newline
-                    | '# UNTIL.LF.??   ## Singleline comment
-                   )
+    NewlineToken =  \st_class(Newline) \++(    # Count multiple empty lines as a single newline
+                        LF                             # Normal newline
+                      / '#' \until [End]LF [Pattern]?? # Singleline comment
+                    )
 
-    Ignorable = SP | CR | TAB       ## Space
-              | '/ - UNTIL(- '/).?? ## Multiline comment
+    Ignorable = SP / CR / TAB                         # Space
+              / '/' - \until [End](- '/') [Pattern]?? # Multiline comment
 
-    Token = mgf.field.span.mgf.MatchSpan.LONGEST(SpecialToken | KeywordToken | TextualToken | NewlineToken)
-    Token_stream = mgf.stream.tokens.0+(mgf.item.tokens.Token | Ignorable)
+    Token = \st_class(Token) \st_field [Name]span [Value]st_match_span (
+        SpecialToken / KeywordToken / TextualToken / NewlineToken
+    )
+    Token_stream =  \st_stream(tokens) \**(
+                        \st_choose [Priority](st_longest/st_first) [Options](
+                            \st_item [Name]tokens [Value]Token
+                        / Ignorable
+                        )
+                    )
 )
 
 
-
-Structure_matching = mgf.scope(
-    mgf.include.mgf.match_classes_from.Token_matching
+# --- Parser spec ----------------------------------------------------------------------------------
+\scope[Prefix]Structured_[Containing](
+    \include(\st_match_classes_from(Tokenizer_Token))
 
     Expression  = Number
                 / String
-                / ( Expression )
-    VariableDeclaration = mgf.field.varName.Identifier = mgf.field.expr.Expression
-    FunctionCall = mgf.field.funcName.Identifier mgf.field.args.mgf.list ( mgf.item.args.Expression 0+.(, mgf.item.args.Expression) )
+                / '(' Expression ')'
+    VariableDeclaration =   (
+                                \st_field[Name]varName[Value]Identifier
+                                '='
+                                \st_field[Name]expr[Value]Expression
+                            )
+    FunctionCall =  (
+                        \st_field[Name]funcName[Value]Identifier
+                        \st_field[Name]args[Value]st_list (
+                            \st_item[Name]args[Value]Expression
+                            \**(',' st_item[Name]args[Value]Expression)
+                        )
+                    )
     Statement = VariableDeclaration / FunctionCall
-    Program = mgf.class.File 1+.(Statement Newline) ## Todo: finish program specification
+    Program = \st_class(File) \++(Statement Newline) ## Todo: finish program specification
 
-    IfStatement = if '( mgf.field.condition.Expression ') : mgf.field.body.Program OPT(else mgf.field.alternative.Program)
+    IfStatement = (
+                    if '(' \st_field[Name]condition[Value]Expression ')'
+                    '{' \st_field_body(Program) '}'
+                    \opt(
+                        else '{' \st_field[Name]alternative[Value]Program '}'
+                    )
+                )
 )
 
-Program_file = MULTISTEP(Token_matching.Token_stream)(Program)
+Program_file = \multistep[Step](Tokenizer_Token_stream)[Step]Structured_Program
