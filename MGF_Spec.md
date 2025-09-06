@@ -82,10 +82,12 @@ As a modern language, MGF provides the following features:
     - Function calls are bigger items themselves
     - The meaning of functions and identifiers depends on the context in which they are used
     - Example: `\repeat{1-5}Letter`
-- A standalone `=` symbol (not part of a function call), with an identifier or a function call on the left, and one or more items on the right, is a ***production***
+- A standalone `=` symbol (not part of a function call), with only an identifier or a function call on the left in the line, and zero or more items on the right, is a ***production***
+    - They have to be at the start of a line
     - Productions are bigger items themselves
     - Productions are used to reuse items, name groups for readability, define new functions or write expressions that couldn't be defined without them, like recursive productions
     - The identifier or function call on the left side of `=` is the production's name
+    - An item of the same name, or fitting function calls expand into the items on the right
     - Example: `Digit = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9`
     - Recursion example: `Expression = Expression ('+' | '-') Number`
     - Function example: `\thrice:Pattern = Pattern Pattern Pattern`
@@ -101,6 +103,32 @@ When productions are written in a sub-scope, they will also exist in the outside
     - If it starts with an item or a non-textual symbol, it gets a *new* starting textual symbol, having only the prefix
 
 ### Contexts
+Items interact with the **context** they are evalated in. A single context can have 
+The following contexts are defined and used by the standard functions:
+- **Choice context**: Allows multiple choices of a result
+    - All context properties can be different for every choice
+    - When matching, allows multiple possible matches
+    - When having a value, allows multiple possible independent values
+    - Has an intrinsic order of choices, which is useful when deciding on one of them
+    - Purpose: Recognition of different inputs and chosing the most suitable interpretation
+- **Matching context**: A context in which items are evaluated to match inputs from a stream
+    - It consists of a stream of input values, which can be textual characters, but also tokens with classes or other values.
+    - Expanding a function into items in this context means processing the inputs by the items it expanded into
+    - When an item matches a string of inputs, the following items can only match following inputs after the matched ones.
+    - Alternative choices can match different strings starting at the same place in the stream. Each choice branches into its own match, with it's own following matches. As the branches are independent, each introduced branch effectively copies the whole context
+- **Value context**: A context in which items produce meaningful values
+    - This context itself is a value
+    - The values of evaluated items are *included* in the context. The fields of the item's value are added to the context, with list-based fields being appended to the fields of the context. The context is a **parent** value to the included values
+    - Purpose: constructing semantic data, ASTs, or annotated values during parsing
+- **Group context**: A context used only within an item group
+    - Usually has a parent context, being the context that surrounds the evaluated group
+    - Purpose: properties that won't affect its parent, like temporary fields
+- **Scope context**: The scope we're evaluating in
+    - Has its prefix and a parent it is a sub-scope of
+    - All productions that are defined within it also exist in its parent, following the prefixing rules
+    - When 
+    - Items evaluated within this context that refer to productions defined within don't need prefixes
+
 
 ### Built-in functions
 Several functions are provided by default:
@@ -119,17 +147,14 @@ Several functions are provided by default:
 - `\include<Prefix>`
     - Expands into a sequence of productions, mapping **all** productions with prefixes `Prefix` removed to prefixed ones
     - Like `\using`, but it automagically selects all the productions prefixed with `Prefix`
-- `\include(ScopeGroup)`
-    - Expands into a sequence of all the productions existing inside the `ScopeGroup`
-    - Note the lack of square brackets
 - `\scope<Prefix>:ScopeGroup`
-    - Introduces a new scope, with the specified prefix
+    - In a scope context: Introduces a new sub-scope, with the specified prefix
     - Expands into a sequence of productions from the `ScopeGroup`, except prefixed with `Prefix` according to scoping rules
 
 ### Standard module
 The module is named `standard_`. After importing, all standard productions will use the `standard_` prefix.
 
-`standard_` functions:
+`standard_` functions and identifiers:
 - `\optional:Pattern`
     - In a matching context: matches `Pattern` and empty stream
 - `\repeat{Lower-Upper}:Pattern`
@@ -156,3 +181,18 @@ The module is named `standard_`. After importing, all standard productions will 
 - `\temp<Name>`
     - In a value-group context: Makes a temporary field `Name` in the group. The temporary field will exist inside the group, but won't be part of the parent value context.
     - All references to the field `Name` in this group context will be of this temporary field
+- `\multistep<Step->Step>`
+    - In a matching context: matches each `Step`, and uses each `Step`'s value as a list of inputs to build a matching context for the next `Step`. The first `Step`'s matching context is the same as the surrounding one, while each next `Step` has its own one
+    - In a value context: expands into the value of the last `Step`, after evaluating all the others
+    - Example: `\multistep<TokenStream->PreprocessedTokenStream->ParserTree>`
+- `\set(First)\to(Last)`
+    - In a matching context with string inputs: matches all characters between `First` and `Last`
+- `wildchar`: Wild character
+    - Matches any single input
+
+String matching `standard_` scopes:
+- `standard_unicode_characters_`: Contains all single-character identifiers matching unicode characters in a textual input stream
+    - Examples: `'"' a b c '"' ' ' '[' 1 2 3 ']' `
+- `standard_unicode_categories_short_`: Contains all two-character shorthands for matching characters of unicode categories
+    - Each identifier consists of one uppercase and one lowercase letter. 'Letter, uppercase' is written as `Lu`
+    - Examples: `Name = Lu \repeat{1+}Ll`

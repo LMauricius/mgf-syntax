@@ -71,7 +71,7 @@
 # --- Modules --------------------------------------------------------------------------------------
 \import<standard_>
 \using<standard_>(
-    optional repeat choose
+    optional repeat choose set
     first shortest longest
     class match_classes_from
     field temp item
@@ -82,6 +82,7 @@
 ?Pattern = \optional:Pattern
 *Pattern = \repeat{0+}:Pattern
 +Pattern = \repeat{1+}:Pattern
+First-Last = \set(First)\to(Last)
 
 {Priority}Options = \choose{Priority}:Options
 
@@ -95,12 +96,7 @@
     \include<standard_unicode_characters_>
     \include<standard_unicode_categories_short_>
 
-    \include(\standard_match_sets(
-        \include<standard_unicode_characters_>
-        \include<standard_unicode_categories_short_>
-    ))
-
-    __ = standard_unicode_wildchar
+    __ = standard_wildchar
     \class_word<Pattern> = \class<Pattern> \standard_unicode_string"Pattern"
 
     # from https:/www.unicode.org/reports/tr31/tr31-3.html - Default id Syntax
