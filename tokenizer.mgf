@@ -74,7 +74,7 @@
     optional repeat choose
     first shortest longest
     class match_classes_from
-    field temp value list item
+    field temp item
     multistep
 )
 
@@ -143,7 +143,8 @@
                         '"' *(Escape_sequence | __)\until('"')
                     )
                   | \class<RawString>  (
-                        r (identifier \temp<Term>:match_span) '"'
+                        \temp<Term>
+                        r (identifier \field<Term>:match_span) '"'
                         *__\until('"' Term)
                     )
 
@@ -160,9 +161,9 @@
     Token = \class<Token> \field<span>:match_span (
         SpecialToken | KeywordToken | TextualToken | NewlineToken
     )
-    Token_stream =  \value:list *(
+    Token_stream =  *(
                         {(longest|first)}(
-                            \value\item:Token
+                            \push<.>:Token
                           | Ignorable
                         )
                     )
@@ -183,9 +184,9 @@
                             )
     FunctionCall =  (
                         \field<funcName>:Identifier
-                        \field<args>:list (
-                            \item{args}:Expression
-                            *(',' \item{args}:Expression)
+                        (
+                            \push<args>:Expression
+                            *(',' \push<args>:Expression)
                         )
                     )
     Statement = VariableDeclaration | FunctionCall | IfStatement

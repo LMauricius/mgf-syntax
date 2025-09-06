@@ -68,6 +68,7 @@ As a modern language, MGF provides the following features:
     - Example: `(Digit Letter Digit)`
 - Pipe operator `|` separates ***alternative choices***
     - Example: `Digit | Letter`
+    - Note: it has to be surrounded by spaces
 - ***Symbols*** are used for giving arguments to functions. Any symbol except for `# ( ) | ' \` can be used ( unicode categories `Punctuation` excluding `Connector Punctuation` and `Symbol`)
     - Examples: `+` `-` `=`
 - ***Single quotes*** `' '` are used to treat *any* character as part of an identifier.
@@ -85,8 +86,8 @@ As a modern language, MGF provides the following features:
     - Productions are bigger items themselves
     - Productions are used to reuse items, name groups for readability, define new functions or write expressions that couldn't be defined without them, like recursive productions
     - The identifier or function call on the left side of `=` is the production's name
-    - Example: `Digit = 0|1|2|3|4|5|6|7|8|9`
-    - Recursion example: `Expression = Expression ('+'|'-') Number`
+    - Example: `Digit = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9`
+    - Recursion example: `Expression = Expression ('+' | '-') Number`
     - Function example: `\thrice:Pattern = Pattern Pattern Pattern`
 
 ### Scoping
@@ -103,9 +104,9 @@ When productions are written in a sub-scope, they will also exist in the outside
 
 ### Built-in functions
 Several functions are provided by default:
-- `\import[ModuleName]`
+- `\import<ModuleName>`
     - Loads the module `ModuleName` and expands into a sequence of productions from that module, prefixed with `ModuleName`
-- `\using[Prefix]Selection`
+- `\using<Prefix>Selection`
     - Expands into a sequence of productions, mapping productions with prefixes removed to prefixed ones
     - `Selection` can either be a single item or a group of all items we want to remove prefixes from.
     - The items can either be identifiers, symbols or function calls
@@ -115,15 +116,43 @@ Several functions are provided by default:
     - The removal is done backwards from the scope prefixing rule:
         - If the production is named with an identifier, the prefix gets removed from the identifier
         - If the production is a function, the prefix gets removed from the textual symbol it starts with. If the symbol was only the prefix, it gets removed completely
-- `\include[Prefix]`
+- `\include<Prefix>`
     - Expands into a sequence of productions, mapping **all** productions with prefixes `Prefix` removed to prefixed ones
     - Like `\using`, but it automagically selects all the productions prefixed with `Prefix`
 - `\include(ScopeGroup)`
     - Expands into a sequence of all the productions existing inside the `ScopeGroup`
     - Note the lack of square brackets
-- `\scope[Prefix]:ScopeGroup`
+- `\scope<Prefix>:ScopeGroup`
     - Introduces a new scope, with the specified prefix
     - Expands into a sequence of productions from the `ScopeGroup`, except prefixed with `Prefix` according to scoping rules
 
 ### Standard module
 The module is named `standard_`. After importing, all standard productions will use the `standard_` prefix.
+
+`standard_` functions:
+- `\optional:Pattern`
+    - In a matching context: matches `Pattern` and empty stream
+- `\repeat{Lower-Upper}:Pattern`
+    - In a matching context: matches at minimum `Lower`, up to `Upper` number of repeating `Pattern` matches
+- `\repeat{Lower+}:Pattern`
+    - In a matching context: matches any number greater than `Lower` repeating `Pattern` matches
+- `\choose<Priority>:Options`
+    - In a matching context: When multiple options match the stream, chooses one of them. So any option matches the stream only if the options with a higher priority *don't* match it.
+    - Argument `Priority`: the rule of choosing one option. Can be `first`, `shortest`, `longest`, or a group containing alternatives of them, with the first alternative having the top-most priority.
+        - `first`: Chooses the option that is written first
+        - `longest`/`shortest`: chooses the option that matches the longest/shortest sequence of the stream, respectively
+- `\class<ClassId>`
+    - In a value context: adds class `ClassId` to the value
+- `\match_classes_from(Pattern)`
+    - Expands into a sequence of productions, one per each class mentioned indirectly in the Pattern.
+    Each production has the corresponding `ClassId` as its name, and matches *one* stream item if that item has that `ClassId`
+    - Used to match inputs already parsed through MGF, after applying classes to their outputs
+- `\field<Name>:Value`
+    - In a value context: expands into the `Value`, but instead of including the value in its surrounding context it stores it into the field `Name` of the surronding context
+    The value can be a matching pattern whose value will be stored into the field, or any kind of value-returning item
+- `\push<Name>:Value`
+    - In a value context: expands into the `Value`, but instead of including the value in its surrounding context it appends it to the list in field `Name` of the surronding context
+    The value can be a matching pattern whose value will be appended into the field, or any kind of value-returning item
+- `\temp<Name>`
+    - In a value-group context: Makes a temporary field `Name` in the group. The temporary field will exist inside the group, but won't be part of the parent value context.
+    - All references to the field `Name` in this group context will be of this temporary field
