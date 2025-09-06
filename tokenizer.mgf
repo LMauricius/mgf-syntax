@@ -191,14 +191,14 @@
     Statement = VariableDeclaration | FunctionCall | IfStatement
 
     IfStatement = (
-                    if '(' condition:Expression ')'
-                    '{' body:Program '}'
+                    if '(' <condition>:Expression ')'
+                    '{' <body>:Program '}'
                     ?(
-                        else '{' alternative:Program '}'
+                        else '{' <alternative>:Program '}'
                     )
                 )
 
     Program = \class<File> +(Statement Newline) # Todo: finish program specification
 )
 
-Program_string = \multistep-tokenizer_Token_stream-parser_Program
+Program_string = \multistep<tokenizer_Token_stream->parser_Program>
