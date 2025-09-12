@@ -69,7 +69,7 @@ As a modern language, MGF provides the following features:
 - Pipe operator `|` separates ***alternative choices***
     - Example: `Digit | Letter`
     - Note: it has to be surrounded by spaces
-- ***Symbols*** are used for giving arguments to functions. Any symbol except for `# ( ) | ' \` can be used ( unicode categories `Punctuation` excluding `Connector Punctuation` and `Symbol`)
+- ***Symbols*** are used for giving arguments to functions. Any symbol except for `# ( ) | ' \ =` can be used ( unicode categories `Punctuation` (excluding `Connector Punctuation`) and `Symbol`)
     - Examples: `+` `-` `=`
 - ***Single quotes*** `' '` are used to treat *any* character as part of an identifier.
     - Example: `'+'`
@@ -77,17 +77,18 @@ As a modern language, MGF provides the following features:
 - Backslash `\` is used to write ***textual symbols***. The `\` immediately followed by an identifier is treated as a symbol, not identifier
     - This is commonly used when we want more explicit function naming, if pure symbols wouldn't be recognizable enough
     - Example: `\optional` is a symbol
-- A sequence of at least one symbol and one item, with no spaces inbetween, is a ***function call***
+- A sequence of at least two symbols or items, with no spaces inbetween, is a ***function call***
     - Items are used as arguments to the call. There must be at least one symbol between them.
     - Function calls are bigger items themselves
     - The meaning of functions and identifiers depends on the context in which they are used
     - Example: `\repeat{1-5}Letter`
-- A standalone `=` symbol (not part of a function call), with only an identifier or a function call on the left in the line, and zero or more items on the right, is a ***production***
-    - They have to be at the start of a line
+- A standalone `=` symbol (not part of a function call), with only an identifier or a function call on the left and zero or more items on the right, is a ***production***
+    - The right side goes until the end of the line
     - Productions are bigger items themselves
     - Productions are used to reuse items, name groups for readability, define new functions or write expressions that couldn't be defined without them, like recursive productions
     - The identifier or function call on the left side of `=` is the production's name
     - An item of the same name, or fitting function calls expand into the items on the right
+    - A line *starting* with just `=` makes an alternative choice for the right side of the production on the previous line
     - Example: `Digit = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9`
     - Recursion example: `Expression = Expression ('+' | '-') Number`
     - Function example: `\thrice:Pattern = Pattern Pattern Pattern`

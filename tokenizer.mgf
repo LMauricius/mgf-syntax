@@ -71,24 +71,24 @@
 # --- Modules --------------------------------------------------------------------------------------
 \import<standard_>
 \using<standard_>(
-    optional repeat choose set
-    first shortest longest
-    class match_classes_from
-    field temp item
-    multistep
+    \optional() \repeat() \range()\to()
+    \first() \shortest_first() \longest_first()
+    \class<()> \match_classes_from()
+    \field<()>:() \temp<()> \push<()>:()
+    \multistep<()>>()>
 )
 
 # --- Macros and aliases ---------------------------------------------------------------------------
-?Pattern = \optional:Pattern
-*Pattern = \repeat{0+}:Pattern
-+Pattern = \repeat{1+}:Pattern
-First-Last = \set(First)\to(Last)
+Pattern? = \optional:Pattern
+Pattern* = \repeat{0+}:Pattern
+Pattern+ = \repeat{1+}:Pattern
+First-Last = \range(First)\to(Last)
+<Name>:Pattern = \field<Name>:Pattern
+<Name>+:Pattern = \push<Name>:Pattern
 
-{Priority}Options = \choose{Priority}:Options
-
-*Pattern\until(End) =  {first}(
+Pattern*\until(End) =  \first(
                             End
-                          | (Pattern *Pattern\until(End))
+                          | (Pattern Pattern*\until(End))
                         )
 
 # --- Tokenizer spec -------------------------------------------------------------------------------
@@ -106,63 +106,64 @@ First-Last = \set(First)\to(Last)
     Id_continue  = Id_start|Mn|Mc|Nd|Cf
 
     Base_mark  = 0 (b|o|x)
-    E_mark     = _ ('+'|'-') +Nd
+    E_mark     = _ ('+'|'-') Nd+
     StartDigit = 1-9|a-f|A-F
     Digit      = 0-9|a-f|A-F
 
     Escape_sequence = '\' (n|r|t|0)
 
-    SpecialToken = \class_word<'('>
-                 | \class_word<')'>
-                 | \class_word<'['>
-                 | \class_word<']'>
-                 | \class_word<'{'>
-                 | \class_word<'}'>
-                 | \class_word<'='>
-
+    SpecialToken =  \class_word<'('>
+                 =  \class_word<')'>
+                 =  \class_word<'['>
+                 =  \class_word<']'>
+                 =  \class_word<'{'>
+                 =  \class_word<'}'>
+                 =  \class_word<'='>
+                 
     KeywordToken = \class<Keyword> (
                         \class_word<if>
                       | \class_word<else>
                       | \class_word<while>
                     )
         
-    TextualToken =  \class<Identifier> (
-                        Id_start *( Id_continue | Id_connector Id_continue )
-                    )
-                  | \class<Number>     (
-                        ?Base_mark
-                        (0 | StartDigit *Digit)
-                        ?('.' +(_ | Digit))
-                        ?E_mark
-                    )
-                  | \class<String>     (
-                        '"' *(Escape_sequence | __)\until('"')
-                    )
-                  | \class<RawString>  (
-                        \temp<Term>
-                        r (identifier \field<Term>:match_span) '"'
-                        *__\until('"' Term)
-                    )
+    TextualToken
+    =  \class<Identifier> (
+        Id_start ( Id_continue | Id_connector Id_continue )*
+    )
+    =  \class<Number>     (
+        Base_mark?
+        (0 | StartDigit Digit*)
+        ('.' (_ | Digit)+)?
+        E_mark?
+    )
+    =  \class<String>     (
+        '"' (Escape_sequence | __)*\until('"')
+    )
+    =  \class<RawString>  (
+        \temp<Term>
+        r (identifier \field<Term>:match_span) '"'
+        __*\until('"' Term)
+    )
 
-    NewlineToken =  \class<Newline> +(    # Count multiple empty lines as a single newline
+    NewlineToken =  \class<Newline> (    # Count multiple empty lines as a single newline
                         LF                    # Normal newline
-                      | '/' '/' *__\until(LF) # Singleline comment
-                    )
+                      | '/' '/' __*\until(LF) # Singleline comment
+                    )+
 
-    MultilineComment = '/' '*' *({first}(MultilineComment | __))\until('*' '/')
+    MultilineComment = '/' '*' ({first}(MultilineComment | __))*\until('*' '/')
 
-    Ignorable = SP | CR | TAB                         # Space
-              | MultilineComment # Multiline comment
+    Ignorable = SP | CR | TAB    # Space
+              = MultilineComment # Multiline comment
 
     Token = \class<Token> \field<span>:match_span (
         SpecialToken | KeywordToken | TextualToken | NewlineToken
     )
-    Token_stream =  *(
+    Token_stream =  (
                         {(longest|first)}(
                             \push<.>:Token
                           | Ignorable
                         )
-                    )
+                    )*
 )
 
 
@@ -171,18 +172,22 @@ First-Last = \set(First)\to(Last)
     \match_classes_from(tokenizer_Token)
 
     Expression  = Number
-                | String
-                | '(' Expression ')'
-    VariableDeclaration =   (
-                                \field<varName>:Identifier
-                                '='
-                                \field<expr>:Expression
-                            )
+                = String
+                = '(' Expression ')'
+    VariableDeclaration
+    = (
+        \field<varName>:Identifier
+        ':'
+        \field<expr>:Expression
+        '='
+        \field<expr>:Expression
+    )
+    = \field<varName>:Identifier '=' \field<expr>:Expression
     FunctionCall =  (
                         \field<funcName>:Identifier
                         (
                             \push<args>:Expression
-                            *(',' \push<args>:Expression)
+                            (',' \push<args>:Expression)*
                         )
                     )
     Statement = VariableDeclaration | FunctionCall | IfStatement
@@ -190,12 +195,12 @@ First-Last = \set(First)\to(Last)
     IfStatement = (
                     if '(' <condition>:Expression ')'
                     '{' <body>:Program '}'
-                    ?(
+                    (
                         else '{' <alternative>:Program '}'
-                    )
+                    )?
                 )
 
-    Program = \class<File> +(Statement Newline) # Todo: finish program specification
+    Program = \class<File> (Statement Newline)+ # Todo: finish program specification
 )
 
-Program_string = \multistep<tokenizer_Token_stream->parser_Program>
+Program_string = \multistep<tokenizer_Token_stream>>parser_Program>
