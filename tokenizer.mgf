@@ -5,7 +5,7 @@
     [first]() [shortest_first]() [longest_first]()
     [class]() [match_classes_from]()
     [field]():() [temp]() [push]():()
-    [multistep]()->()
+    [multistep]()->...
 )
 
 # --- Macros and aliases ---------------------------------------------------------------------------
@@ -51,7 +51,7 @@ Pattern*[until]End =  [first](
                  =  [class_word]'}'
                  =  [class_word]'='
                  
-    KeywordToken = [class]<Keyword> (
+    KeywordToken = [class]Keyword (
                         [class_word]if
                       | [class_word]else
                       | [class_word]while
