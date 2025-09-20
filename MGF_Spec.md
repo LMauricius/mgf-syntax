@@ -74,14 +74,14 @@ As a modern language, MGF provides the following features:
 - ***Single quotes*** `' '` are used to treat *any* character as part of an identifier.
     - Example: `'+'`
     - Quotes can be part of identifiers with multiple characters. `Identifier' 'with' 'a' ''<'space'>'` is a single identifier, for example
-- Backslash `\` is used to write ***textual symbols***. The `\` immediately followed by an identifier is treated as a symbol, not identifier
+- Brackets `[ ]` are used to write ***textual symbols***. The `[` immediately followed by an identifier is treated as a symbol, not identifier
     - This is commonly used when we want more explicit function naming, if pure symbols wouldn't be recognizable enough
-    - Example: `\optional` is a symbol
+    - Example: `[optional]` is a symbol
 - A sequence of at least two symbols or items, with no spaces inbetween, is a ***function call***
     - Items are used as arguments to the call. There must be at least one symbol between them.
     - Function calls are bigger items themselves
     - The meaning of functions and identifiers depends on the context in which they are used
-    - Example: `\repeat{1-5}Letter`
+    - Example: `[repeat]{1-5}Letter`
 - A standalone `=` symbol (not part of a function call), with only an identifier or a function call on the left and zero or more items on the right, is a ***production***
     - The right side goes until the end of the line
     - Productions are bigger items themselves
@@ -91,7 +91,7 @@ As a modern language, MGF provides the following features:
     - A line *starting* with just `=` makes an alternative choice for the right side of the production on the previous line
     - Example: `Digit = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9`
     - Recursion example: `Expression = Expression ('+' | '-') Number`
-    - Function example: `\thrice:Pattern = Pattern Pattern Pattern`
+    - Function example: `[thrice]Pattern = Pattern Pattern Pattern`
 
 ### Scoping
 MGF doesn't use proper namespaces. Instead, it uses a robust prefix system.
@@ -133,22 +133,21 @@ The following contexts are defined and used by the standard functions:
 
 ### Built-in functions
 Several functions are provided by default:
-- `\import<ModuleName>`
+- `[import]ModuleName`
     - Loads the module `ModuleName` and expands into a sequence of productions from that module, prefixed with `ModuleName`
-- `\using<Prefix>Selection`
+- `[using]Prefix::Selection`
     - Expands into a sequence of productions, mapping productions with prefixes removed to prefixed ones
     - `Selection` can either be a single item or a group of all items we want to remove prefixes from.
-    - The items can either be identifiers, symbols or function calls
+    - The items can either be identifiers or function calls
         - If it's an identifier, it selects productions named that identifier, prefixed with `Prefix`
-        - If it's a textual symbol, it selects all function productions starting with that symbol, prefixed with `Prefix`
-        - If it's a function call, it selects the productions with that exact function call as their names, prefixed with a textual symbol `\Prefix`
+        - If it's a function call, it selects the productions with that exact function call as their names, prefixed with a textual symbol `[Prefix]`. If it already starts with a textual symbol, the text itself is prefixed.
     - The removal is done backwards from the scope prefixing rule:
         - If the production is named with an identifier, the prefix gets removed from the identifier
         - If the production is a function, the prefix gets removed from the textual symbol it starts with. If the symbol was only the prefix, it gets removed completely
-- `\include<Prefix>`
+- `[include]Prefix`
     - Expands into a sequence of productions, mapping **all** productions with prefixes `Prefix` removed to prefixed ones
-    - Like `\using`, but it automagically selects all the productions prefixed with `Prefix`
-- `\scope<Prefix>:ScopeGroup`
+    - Like `[using]`, but it automagically selects all the productions prefixed with `Prefix`
+- `[scope]Prefix::ScopeGroup`
     - In a scope context: Introduces a new sub-scope, with the specified prefix
     - Expands into a sequence of productions from the `ScopeGroup`, except prefixed with `Prefix` according to scoping rules
 
@@ -156,37 +155,36 @@ Several functions are provided by default:
 The module is named `standard_`. After importing, all standard productions will use the `standard_` prefix.
 
 `standard_` functions and identifiers:
-- `\optional:Pattern`
+- `[optional]Pattern`
     - In a matching context: matches `Pattern` and empty stream
-- `\repeat{Lower-Upper}:Pattern`
+- `[repeat]{Lower-Upper}Pattern`
     - In a matching context: matches at minimum `Lower`, up to `Upper` number of repeating `Pattern` matches
-- `\repeat{Lower+}:Pattern`
+- `[repeat]{Lower+}Pattern`
     - In a matching context: matches any number greater than `Lower` repeating `Pattern` matches
-- `\choose<Priority>:Options`
+- `[first]Options` `[shortest_first]Options` and `[longest_first]Options`
     - In a matching context: When multiple options match the stream, chooses one of them. So any option matches the stream only if the options with a higher priority *don't* match it.
-    - Argument `Priority`: the rule of choosing one option. Can be `first`, `shortest`, `longest`, or a group containing alternatives of them, with the first alternative having the top-most priority.
         - `first`: Chooses the option that is written first
-        - `longest`/`shortest`: chooses the option that matches the longest/shortest sequence of the stream, respectively
-- `\class<ClassId>`
+        - `longest_first`/`shortest_first`: chooses the option that matches the longest/shortest sequence of the stream. If multiple match that length, choose the one that is written first
+- `[class]ClassId`
     - In a value context: adds class `ClassId` to the value
-- `\match_classes_from(Pattern)`
+- `[match_classes_from]Pattern`
     - Expands into a sequence of productions, one per each class mentioned indirectly in the Pattern.
     Each production has the corresponding `ClassId` as its name, and matches *one* stream item if that item has that `ClassId`
     - Used to match inputs already parsed through MGF, after applying classes to their outputs
-- `\field<Name>:Value`
+- `[field]Name:Value`
     - In a value context: expands into the `Value`, but instead of including the value in its surrounding context it stores it into the field `Name` of the surronding context
     The value can be a matching pattern whose value will be stored into the field, or any kind of value-returning item
-- `\push<Name>:Value`
+- `[push]Name:Value`
     - In a value context: expands into the `Value`, but instead of including the value in its surrounding context it appends it to the list in field `Name` of the surronding context
     The value can be a matching pattern whose value will be appended into the field, or any kind of value-returning item
-- `\temp<Name>`
+- `[temp]Name`
     - In a value-group context: Makes a temporary field `Name` in the group. The temporary field will exist inside the group, but won't be part of the parent value context.
     - All references to the field `Name` in this group context will be of this temporary field
-- `\multistep<Step->Step>`
+- `[multistep]Step->...`
     - In a matching context: matches each `Step`, and uses each `Step`'s value as a list of inputs to build a matching context for the next `Step`. The first `Step`'s matching context is the same as the surrounding one, while each next `Step` has its own one
     - In a value context: expands into the value of the last `Step`, after evaluating all the others
-    - Example: `\multistep<TokenStream->PreprocessedTokenStream->ParserTree>`
-- `\set(First)\to(Last)`
+    - Example: `[multistep]TokenStream->PreprocessedTokenStream->ParserTree`
+- `[set]First[to]Last`
     - In a matching context with string inputs: matches all characters between `First` and `Last`
 - `wildchar`: Wild character
     - Matches any single input
@@ -196,4 +194,4 @@ String matching `standard_` scopes:
     - Examples: `'"' a b c '"' ' ' '[' 1 2 3 ']' `
 - `standard_unicode_categories_short_`: Contains all two-character shorthands for matching characters of unicode categories
     - Each identifier consists of one uppercase and one lowercase letter. 'Letter, uppercase' is written as `Lu`
-    - Examples: `Name = Lu \repeat{1+}Ll`
+    - Examples: `Name = Lu [repeat]{1+}Ll`
