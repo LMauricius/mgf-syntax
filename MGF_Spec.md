@@ -107,6 +107,18 @@ As a modern language, MGF provides the following features:
     - Example: `Digit = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9`
     - Recursion example: `Expression = Expression ('+' | '-') Number`
     - Function example: `[thrice]Pattern = Pattern Pattern Pattern`
+- An elipsis `...` in a function call marks the previous argument as **variadic**
+    - Variadic arguments can be specified an arbitrary number of times (at least once)
+    - All the variadic arguments are collected in a *variadic group*.
+      Each item of the group referred to by the variadic argument's name
+      is one argument that was passed
+    - If used not as a production name,
+      the previous argument has to be a group and
+      it will be expanded so its items are interpreted as arguments.
+      That is, it won't be collected in a variadic group
+    - At least one argument is needed so the function is of a recognizable format.
+      If you want to support the 0-count argument option,
+      simply make another function that doesn't take the argument.
 
 ### Scoping
 MGF doesn't use proper namespaces. Instead, it uses a robust prefix system.
