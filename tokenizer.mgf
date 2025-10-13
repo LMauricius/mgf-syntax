@@ -12,14 +12,11 @@
 Pattern? = [optional]:Pattern
 Pattern* = [repeat]{0+}:Pattern
 Pattern+ = [repeat]{1+}:Pattern
-First-Last = [range](First)[to](Last)
+First-Last = [range]First[to]Last
 Name:Pattern = [field]Name:Pattern
 Name+:Pattern = [push]Name:Pattern
 
-Pattern*[until]End =  [first](
-                            End
-                          | (Pattern Pattern*[until](End))
-                        )
+Pattern*[until]End = [first](End | (Pattern Pattern*[until](End)))
 
 # --- Tokenizer spec -------------------------------------------------------------------------------
 [scope]tokenizer_::(
