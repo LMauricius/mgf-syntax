@@ -1,6 +1,6 @@
 # --- Modules --------------------------------------------------------------------------------------
 [import]standard_
-[using]standard_::(
+[using]standard_[selection](
     [optional]() [repeat]() [range]()[to]()
     [first]() [shortest_first]() [longest_first]()
     [class]() [match_classes_from]()
@@ -18,14 +18,14 @@ Name:Pattern = [field]Name:Pattern
 Name+:Pattern = [push]Name:Pattern
 Path.(...).Name = [get]Path.(...).Name
 
-[scope]num::(
+[scope]num[contains](
     [include]standard_values_numbers_
 )
 
 Pattern*[until]End = [first](End | (Pattern Pattern*[until](End)))
 
 # --- Tokenizer spec -------------------------------------------------------------------------------
-[scope]tokenizer_::(
+[scope]tokenizer_[contains](
     [include]standard_unicode_characters_
     [include]standard_unicode_categories_short_
 
@@ -99,7 +99,7 @@ Pattern*[until]End = [first](End | (Pattern Pattern*[until](End)))
 
 
 # --- Parser spec ----------------------------------------------------------------------------------
-[scope]parser_::(
+[scope]parser_[contains](
     [match_classes_from]tokenizer_Token
 
     Expression = Number
