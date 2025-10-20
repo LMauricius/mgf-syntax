@@ -6,6 +6,7 @@
     [class]() [match_classes_from]()
     [field]():() [temp]() [push]():()
     [multistep]()->...
+    [get]().(...)
 )
 
 # --- Macros and aliases ---------------------------------------------------------------------------
@@ -15,6 +16,11 @@ Pattern+ = [repeat]{1+}:Pattern
 First-Last = [range]First[to]Last
 Name:Pattern = [field]Name:Pattern
 Name+:Pattern = [push]Name:Pattern
+Path.(...).Name = [get]Path.(...).Name
+
+[scope]num::(
+    [include]standard_values_numbers_
+)
 
 Pattern*[until]End = [first](End | (Pattern Pattern*[until](End)))
 
@@ -24,7 +30,7 @@ Pattern*[until]End = [first](End | (Pattern Pattern*[until](End)))
     [include]standard_unicode_categories_short_
 
     __ = standard_wildchar
-    [class_word]Pattern = [class]Pattern [standard_unicode_string]Pattern
+    [class_word]Pattern = [class]Pattern & [standard_unicode_string]Pattern
 
     # from https:/www.unicode.org/reports/tr31/tr31-3.html - Default id Syntax
     # exception is the connector punctuation; as only one consecutive is supported
@@ -33,7 +39,7 @@ Pattern*[until]End = [first](End | (Pattern Pattern*[until](End)))
     Id_continue  = Id_start|Mn|Mc|Nd|Cf
     Id_word      = Id_start ( Id_continue | Id_connector Id_continue )*
 
-    Base_mark  = 0 (b|o|x)
+    Base_mark  = 0 (b & base:num2 | o & base:num8 | x & base:num16)
     E_mark     = _ ('+'|'-') Nd+
     StartDigit = 1-9|a-f|A-F
     Digit      = 0-9|a-f|A-F
@@ -48,29 +54,29 @@ Pattern*[until]End = [first](End | (Pattern Pattern*[until](End)))
                  =  [class_word]'}'
                  =  [class_word]'='
                  
-    KeywordToken = [class]Keyword (
+    KeywordToken = [class]Keyword & (
                         [class_word]if
                       | [class_word]else
                       | [class_word]while
                     )
         
-    TextualToken = [class]Identifier Id_word
-    =  [class]Number     (
-        Base_mark?
+    TextualToken = [class]Identifier & Id_word
+                 = [class]Number & (
+        (Base_mark | () & base:num_10)
         (0 | StartDigit Digit*)
         ('.' (_ | Digit)+)?
         E_mark?
     )
-    =  [class]String     (
+                 = [class]String & (
         '"' (Escape_sequence | __)*[until]'"'
     )
-    =  [class]RawString  (
+                 = [class]RawString & (
         [temp]Term
         r (Id_word [field]Term:match_span) '"'
         __*[until]('"' Term)
     )
 
-    NewlineToken = [class]Newline (    
+    NewlineToken = [class]Newline & (    
         LF                     # Normal newline
         | '/' '/' __*[until]LF # Singleline comment
     )+ # Count multiple empty lines as a single newline
@@ -80,15 +86,15 @@ Pattern*[until]End = [first](End | (Pattern Pattern*[until](End)))
     Ignorable = SP | CR | TAB    # Space
               = MultilineComment # Multiline comment
 
-    Token = [field]span:match_span (
+    AnyToken = [field]span:match_span (
         SpecialToken | KeywordToken | TextualToken | NewlineToken
     )
-    Token_stream =  (
-                        [longest_first](
-                            [push].:Token
-                          | Ignorable
-                        )
-                    )*
+    Tokens = (
+        [longest_first](
+            stream+:AnyToken
+            | Ignorable
+        )
+    )*
 )
 
 
@@ -96,17 +102,11 @@ Pattern*[until]End = [first](End | (Pattern Pattern*[until](End)))
 [scope]parser_::(
     [match_classes_from]tokenizer_Token
 
-    Expression  = Number
-                = String
-                = '(' Expression ')'
-    VariableDeclaration = (
-        varName:Identifier
-        ':'
-        type:Expression
-        '='
-        value:Expression
-    )
-    = varName:Identifier '=' value:Expression
+    Expression = Number
+               = String
+               = '(' Expression ')'
+    VariableDeclaration = varName:Identifier ':' type:Expression '=' value:Expression
+                        = varName:Identifier '=' value:Expression
     FunctionCall = funcName:Identifier '(' args+:Expression (',' args+:Expression)* ')'
     Statement = VariableDeclaration | FunctionCall | IfStatement
 
@@ -118,7 +118,7 @@ Pattern*[until]End = [first](End | (Pattern Pattern*[until](End)))
                     )?
                 )
 
-    Program = [class]File (Statement Newline)+ # Todo: finish program specification
+    Program = [class]File & (Statement Newline)+ # Todo: finish program specification
 )
 
-Program_string = [multistep]tokenizer_Token_stream->parser_Program
+Program = [multistep]tokenizer_Tokens.stream->parser_Program
