@@ -3,14 +3,14 @@
 [using]standard_[selection](
     [optional]() [repeat]() [range]()[to]()
     [first]() [shortest_first]() [longest_first]()
-    [class]() [match_classes_from]()
+    class_() [match_classes_from]()
     [field]():() [temp]() [push]():()
     [multistep]()->...
     [get]().(...)
 )
 
 # --- Macros and aliases ---------------------------------------------------------------------------
-Pattern? = [optional]:Pattern
+Pattern? = [optional]Pattern
 Pattern* = [repeat]{0+}:Pattern
 Pattern+ = [repeat]{1+}:Pattern
 First-Last = [range]First[to]Last
@@ -18,8 +18,12 @@ Name:Pattern = [field]Name:Pattern
 Name+:Pattern = [push]Name:Pattern
 Path.(...).Name = [get]Path.(...).Name
 
-[scope]num[contains](
-    [include]standard_values_numbers_
+[scope]num_[contains](
+    [include]standard_values_number_
+)
+
+[scope]class_[contains](
+    [include]standard_values_class_
 )
 
 Pattern*[until]End = [first](End | (Pattern Pattern*[until](End)))
@@ -30,7 +34,7 @@ Pattern*[until]End = [first](End | (Pattern Pattern*[until](End)))
     [include]standard_unicode_categories_short_
 
     __ = standard_wildchar
-    [class_word]Pattern = [class]Pattern & [standard_unicode_string]Pattern
+    [class_word]Pattern = class_Pattern & [standard_unicode_string]Pattern
 
     # from https:/www.unicode.org/reports/tr31/tr31-3.html - Default id Syntax
     # exception is the connector punctuation; as only one consecutive is supported
@@ -39,44 +43,44 @@ Pattern*[until]End = [first](End | (Pattern Pattern*[until](End)))
     Id_continue  = Id_start|Mn|Mc|Nd|Cf
     Id_word      = Id_start ( Id_continue | Id_connector Id_continue )*
 
-    Base_mark  = 0 (b & base:num2 | o & base:num8 | x & base:num16)
+    Base_mark  = 0 (b & base:num_2 | o & base:num_8 | x & base:num_16)
     E_mark     = _ ('+'|'-') Nd+
     StartDigit = 1-9|a-f|A-F
     Digit      = 0-9|a-f|A-F
 
     Escape_sequence = '\' (n|r|t|0)
 
-    SpecialToken =  [class_word]'('
-                 =  [class_word]')'
-                 =  [class_word]'['
-                 =  [class_word]']'
-                 =  [class_word]'{'
-                 =  [class_word]'}'
-                 =  [class_word]'='
+    SpecialToken =  class_'(' & '('
+                 =  class_')' & ')'
+                 =  class_'[' & '['
+                 =  class_']' & ']'
+                 =  class_'{' & '{'
+                 =  class_'}' & '}'
+                 =  class_'=' & '='
                  
-    KeywordToken = [class]Keyword & (
-                        [class_word]if
-                      | [class_word]else
-                      | [class_word]while
+    KeywordToken = class_Keyword & (
+                        class_if    & i f
+                      | class_else  & e l s e
+                      | class_while & w h i l e
                     )
         
-    TextualToken = [class]Identifier & Id_word
-                 = [class]Number & (
-        (Base_mark | () & base:num_10)
+    TextualToken = class_Identifier & Id_word
+                 = class_Number & (
+        Base_mark?
         (0 | StartDigit Digit*)
         ('.' (_ | Digit)+)?
         E_mark?
     )
-                 = [class]String & (
+                 = class_String & (
         '"' (Escape_sequence | __)*[until]'"'
     )
-                 = [class]RawString & (
+                 = class_RawString & (
         [temp]Term
         r (Id_word [field]Term:match_span) '"'
         __*[until]('"' Term)
     )
 
-    NewlineToken = [class]Newline & (    
+    NewlineToken = class_Newline & (    
         LF                     # Normal newline
         | '/' '/' __*[until]LF # Singleline comment
     )+ # Count multiple empty lines as a single newline
@@ -118,7 +122,7 @@ Pattern*[until]End = [first](End | (Pattern Pattern*[until](End)))
                     )?
                 )
 
-    Program = [class]File & (Statement Newline)+ # Todo: finish program specification
+    Program = class_File & (Statement Newline)+ # Todo: finish program specification
 )
 
 Program = [multistep]tokenizer_Tokens.stream->parser_Program
