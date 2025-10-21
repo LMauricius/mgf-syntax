@@ -3,7 +3,6 @@
 [using]standard_[selection](
     [optional]() [repeat]() [range]()[to]()
     [first]() [shortest_first]() [longest_first]()
-    class_() [match_classes_from]()
     [field]():() [temp]() [push]():()
     [multistep]()->...
     [get]().(...)
@@ -104,7 +103,23 @@ Pattern*[until]End = [first](End | (Pattern Pattern*[until](End)))
 
 # --- Parser spec ----------------------------------------------------------------------------------
 [scope]parser_[contains](
-    [match_classes_from]tokenizer_Token
+    '(' = [test]class_'('
+    ')' = [test]class_')'
+    '[' = [test]class_'['
+    ']' = [test]class_']'
+    '{' = [test]class_'{'
+    '}' = [test]class_'}'
+    '=' = [test]class_'='
+    
+    if    = [test]class_if
+    else  = [test]class_else
+    while = [test]class_while
+    
+    Identifier = [test]class_Identifier
+    Number     = [test]class_Number
+    String     = [test]class_String
+    RawString  = [test]class_RawString
+    Newline    = [test]class_Newline
 
     Expression = Number
                = String
