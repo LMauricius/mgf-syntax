@@ -3,20 +3,12 @@
 [using]standard_[selection](
     [optional]() [repeat]() [range]()[to]()
     [first]() [shortest_first]() [longest_first]()
-    [field]():() [temp]() [push]():()
-    [multistep]()->...
+    [set]()[to]() [temp]() [push]():()
+    [preprocess]()[then]...
     [get]().(...)
 )
 
 # --- Macros and aliases ---------------------------------------------------------------------------
-Pattern? = [optional]Pattern
-Pattern* = [repeat]{0+}:Pattern
-Pattern+ = [repeat]{1+}:Pattern
-First-Last = [range]First[to]Last
-Name:Pattern = [field]Name:Pattern
-Name+:Pattern = [push]Name:Pattern
-Path.(...).Name = [get]Path.(...).Name
-
 [scope]num_[contains](
     [include]standard_values_number_
 )
@@ -24,6 +16,18 @@ Path.(...).Name = [get]Path.(...).Name
 [scope]class_[contains](
     [include]standard_values_class_
 )
+
+[scope]field_[contains](
+    [include]standard_field
+)
+
+Pattern? = [optional]Pattern
+Pattern* = [repeat]{0+}:Pattern
+Pattern+ = [repeat]{1+}:Pattern
+First-Last = [range]First[to]Last
+Name:Pattern = [set]Name[to]Pattern
+Name+Pattern = [add_entry]Name (Name[last_entry]):Pattern
+Path.(...).Name = [get]Path.(...).Name
 
 Pattern*[until]End = [first](End | (Pattern Pattern*[until](End)))
 
@@ -33,7 +37,6 @@ Pattern*[until]End = [first](End | (Pattern Pattern*[until](End)))
     [include]standard_unicode_categories_short_
 
     __ = standard_wildchar
-    [class_word]Pattern = class_Pattern & [standard_unicode_string]Pattern
 
     # from https:/www.unicode.org/reports/tr31/tr31-3.html - Default id Syntax
     # exception is the connector punctuation; as only one consecutive is supported
@@ -75,7 +78,7 @@ Pattern*[until]End = [first](End | (Pattern Pattern*[until](End)))
     )
                  = class_RawString & (
         [temp]Term
-        r (Id_word [field]Term:match_span) '"'
+        r (Id_word Term:match_span) '"'
         __*[until]('"' Term)
     )
 
@@ -89,12 +92,12 @@ Pattern*[until]End = [first](End | (Pattern Pattern*[until](End)))
     Ignorable = SP | CR | TAB    # Space
               = MultilineComment # Multiline comment
 
-    AnyToken = [field]span:match_span (
+    AnyToken = span:match_span (
         SpecialToken | KeywordToken | TextualToken | NewlineToken
     )
     Tokens = (
         [longest_first](
-            stream+:AnyToken
+            stream+AnyToken
             | Ignorable
         )
     )*
@@ -126,7 +129,7 @@ Pattern*[until]End = [first](End | (Pattern Pattern*[until](End)))
                = '(' Expression ')'
     VariableDeclaration = varName:Identifier ':' type:Expression '=' value:Expression
                         = varName:Identifier '=' value:Expression
-    FunctionCall = funcName:Identifier '(' args+:Expression (',' args+:Expression)* ')'
+    FunctionCall = funcName:Identifier '(' args+Expression (',' args+Expression)* ')'
     Statement = VariableDeclaration | FunctionCall | IfStatement
 
     IfStatement = (
@@ -140,4 +143,4 @@ Pattern*[until]End = [first](End | (Pattern Pattern*[until](End)))
     Program = class_File & (Statement Newline)+ # Todo: finish program specification
 )
 
-Program = [multistep]tokenizer_Tokens.stream->parser_Program
+Program = [preprocess]tokenizer_Tokens.stream[then]parser_Program
