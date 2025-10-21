@@ -26,7 +26,7 @@ Pattern* = [repeat]{0+}:Pattern
 Pattern+ = [repeat]{1+}:Pattern
 First-Last = [range]First[to]Last
 Name:Pattern = [set]Name[to]Pattern
-Name+Pattern = [add_entry]Name (Name[last_entry]):Pattern
+Name+:Pattern = [add_entry]Name (Name[last_entry]):Pattern
 Path.(...).Name = [get]Path.(...).Name
 
 Pattern*[until]End = [first](End | (Pattern Pattern*[until](End)))
@@ -45,7 +45,7 @@ Pattern*[until]End = [first](End | (Pattern Pattern*[until](End)))
     Id_continue  = Id_start|Mn|Mc|Nd|Cf
     Id_word      = Id_start ( Id_continue | Id_connector Id_continue )*
 
-    Base_mark  = 0 (b & base:num_2 | o & base:num_8 | x & base:num_16)
+    Base_mark  = 0 (b & field_base:num_2 | o & field_base:num_8 | x & field_base:num_16)
     E_mark     = _ ('+'|'-') Nd+
     StartDigit = 1-9|a-f|A-F
     Digit      = 0-9|a-f|A-F
@@ -78,7 +78,7 @@ Pattern*[until]End = [first](End | (Pattern Pattern*[until](End)))
     )
                  = class_RawString & (
         [temp]Term
-        r (Id_word Term:match_span) '"'
+        r (Id_word field_Term:match_span) '"'
         __*[until]('"' Term)
     )
 
@@ -92,12 +92,12 @@ Pattern*[until]End = [first](End | (Pattern Pattern*[until](End)))
     Ignorable = SP | CR | TAB    # Space
               = MultilineComment # Multiline comment
 
-    AnyToken = span:match_span (
+    AnyToken = field_span:match_span (
         SpecialToken | KeywordToken | TextualToken | NewlineToken
     )
     Tokens = (
         [longest_first](
-            stream+AnyToken
+            field_stream+:AnyToken
             | Ignorable
         )
     )*
@@ -127,20 +127,20 @@ Pattern*[until]End = [first](End | (Pattern Pattern*[until](End)))
     Expression = Number
                = String
                = '(' Expression ')'
-    VariableDeclaration = varName:Identifier ':' type:Expression '=' value:Expression
-                        = varName:Identifier '=' value:Expression
-    FunctionCall = funcName:Identifier '(' args+Expression (',' args+Expression)* ')'
+    VariableDeclaration = field_name:Identifier ':' field_type:Expression '=' field_value:Expression
+                        = field_name:Identifier '=' field_value:Expression
+    FunctionCall = field_funcName:Identifier '(' field_args+:Expression (',' field_args+:Expression)* ')'
     Statement = VariableDeclaration | FunctionCall | IfStatement
 
     IfStatement = (
-                    if '(' condition:Expression ')'
-                    '{' body:Program '}'
+                    if '(' field_condition:Expression ')'
+                    '{' field_body:Program '}'
                     (
-                        else '{' alternative:Program '}'
+                        else '{' field_alternative:Program '}'
                     )?
                 )
 
-    Program = class_File & (Statement Newline)+ # Todo: finish program specification
+    Program = class_File & (Statement Newline)+ # field_Todo: finish program specification
 )
 
 Program = [preprocess]tokenizer_Tokens.stream[then]parser_Program
