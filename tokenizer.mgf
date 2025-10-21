@@ -36,7 +36,7 @@ Pattern*[until]End = [first](End | (Pattern Pattern*[until](End)))
     [include]standard_unicode_characters_
     [include]standard_unicode_categories_short_
 
-    __ = standard_wildchar
+    Any = standard_any_input
 
     # from https:/www.unicode.org/reports/tr31/tr31-3.html - Default id Syntax
     # exception is the connector punctuation; as only one consecutive is supported
@@ -74,20 +74,20 @@ Pattern*[until]End = [first](End | (Pattern Pattern*[until](End)))
         E_mark?
     )
                  = class_String & (
-        '"' (Escape_sequence | __)*[until]'"'
+        '"' (Escape_sequence | Any)*[until]'"'
     )
                  = class_RawString & (
         [temp]Term
         r (Id_word field_Term:match_span) '"'
-        __*[until]('"' Term)
+        Any*[until]('"' Term)
     )
 
     NewlineToken = class_Newline & (    
         LF                     # Normal newline
-        | '/' '/' __*[until]LF # Singleline comment
+        | '/' '/' Any*[until]LF # Singleline comment
     )+ # Count multiple empty lines as a single newline
 
-    MultilineComment = '/' '*' ([first](MultilineComment | __))*[until]('*' '/')
+    MultilineComment = '/' '*' ([first](MultilineComment | Any))*[until]('*' '/')
 
     Ignorable = SP | CR | TAB    # Space
               = MultilineComment # Multiline comment
