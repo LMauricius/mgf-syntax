@@ -10,11 +10,11 @@
 
 # --- Macros and aliases ---------------------------------------------------------------------------
 [scope]num_[contains](
-    [include]standard_values_number_
+    [include]standard_number_
 )
 
 [scope]class_[contains](
-    [include]standard_values_class_
+    [include]standard_class_
 )
 
 [scope]field_[contains](
@@ -106,17 +106,17 @@ Pattern*[until]End = [first](End | (Pattern Pattern*[until](End)))
 
 # --- Parser spec ----------------------------------------------------------------------------------
 [scope]parser_[contains](
-    '(' = [test]class_'('
-    ')' = [test]class_')'
-    '[' = [test]class_'['
-    ']' = [test]class_']'
-    '{' = [test]class_'{'
-    '}' = [test]class_'}'
-    '=' = [test]class_'='
+    '('        = [test]class_'('
+    ')'        = [test]class_')'
+    '['        = [test]class_'['
+    ']'        = [test]class_']'
+    '{'        = [test]class_'{'
+    '}'        = [test]class_'}'
+    '='        = [test]class_'='
     
-    if    = [test]class_if
-    else  = [test]class_else
-    while = [test]class_while
+    if         = [test]class_if
+    else       = [test]class_else
+    while      = [test]class_while
     
     Identifier = [test]class_Identifier
     Number     = [test]class_Number
