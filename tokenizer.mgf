@@ -2,7 +2,7 @@
 [import]standard_
 [using]standard_[selection](
     [optional]() [repeat]() [range]()[to]()
-    [first]() [shortest_first]() [longest_first]()
+    [first]() [shortest]() [longest]() [shortest_first]() [longest_first]()
     [set]()[to]() [temp]() [push]():()
     [preprocess]()[then]...
     [get]().(...)
@@ -52,40 +52,38 @@ Pattern*[until]End = [first](End | (Pattern Pattern*[until](End)))
 
     Escape_sequence = '\' (n|r|t|0)
 
-    SpecialToken =  class_'(' & '('
-                 =  class_')' & ')'
-                 =  class_'[' & '['
-                 =  class_']' & ']'
-                 =  class_'{' & '{'
-                 =  class_'}' & '}'
-                 =  class_'=' & '='
+    SpecialToken = '(' [output]class_'('
+                 = ')' [output]class_')'
+                 = '[' [output]class_'['
+                 = ']' [output]class_']'
+                 = '{' [output]class_'{'
+                 = '}' [output]class_'}'
+                 = '=' [output]class_'='
                  
-    KeywordToken = class_Keyword & (
-                        class_if    & i f
-                      | class_else  & e l s e
-                      | class_while & w h i l e
-                    )
+    KeywordToken = i f       [output](class_Keyword & class_if)
+                 = e l s e   [output](class_Keyword & class_else)
+                 = w h i l e [output](class_Keyword & class_while)
         
-    TextualToken = class_Identifier & Id_word
-                 = class_Number & (
+    TextualToken = [output]class_Identifier Id_word
+                 = [output]class_Number (
         Base_mark?
         (0 | StartDigit Digit*)
         ('.' (_ | Digit)+)?
         E_mark?
     )
-                 = class_String & (
+                 = [output]class_String (
         '"' (Escape_sequence | Any)*[until]'"'
     )
-                 = class_RawString & (
+                 = [output]class_RawString (
         [temp]Term
         r (Id_word field_Term:match_span) '"'
         Any*[until]('"' Term)
     )
 
-    NewlineToken = class_Newline & (    
-        LF                     # Normal newline
-        | '/' '/' Any*[until]LF # Singleline comment
-    )+ # Count multiple empty lines as a single newline
+    NewlineToken = [output]class_Newline (    
+        LF                    # Normal newline
+      | '/' '/' Any*[until]LF # Singleline comment
+    )+ # Count multiple empty lines as a single newlines
 
     MultilineComment = '/' '*' ([first](MultilineComment | Any))*[until]('*' '/')
 
@@ -106,23 +104,14 @@ Pattern*[until]End = [first](End | (Pattern Pattern*[until](End)))
 
 # --- Parser spec ----------------------------------------------------------------------------------
 [scope]parser_[contains](
-    '('        = [test]class_'('
-    ')'        = [test]class_')'
-    '['        = [test]class_'['
-    ']'        = [test]class_']'
-    '{'        = [test]class_'{'
-    '}'        = [test]class_'}'
-    '='        = [test]class_'='
-    
-    if         = [test]class_if
-    else       = [test]class_else
-    while      = [test]class_while
-    
-    Identifier = [test]class_Identifier
-    Number     = [test]class_Number
-    String     = [test]class_String
-    RawString  = [test]class_RawString
-    Newline    = [test]class_Newline
+    [using]class_[selection](
+        '(' ')'
+        '[' ']'
+        '{' '}'
+        '='
+        if else while
+        Identifier Number String RawString Newline
+    )
 
     Expression = Number
                = String
@@ -140,7 +129,7 @@ Pattern*[until]End = [first](End | (Pattern Pattern*[until](End)))
                     )?
                 )
 
-    Program = class_File & (Statement Newline)+ # field_Todo: finish program specification
+    Program = [output]class_File (Statement Newline)+ # field_Todo: finish program specification
 )
 
 Program = [preprocess]tokenizer_Tokens.stream[then]parser_Program
