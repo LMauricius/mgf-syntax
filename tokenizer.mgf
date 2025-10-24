@@ -52,47 +52,54 @@ Pattern*[until]End = [first](End | (Pattern Pattern*[until](End)))
 
     Escape_sequence = '\' (n|r|t|0)
 
-    SpecialToken = '(' [output]class_'('
-                 = ')' [output]class_')'
-                 = '[' [output]class_'['
-                 = ']' [output]class_']'
-                 = '{' [output]class_'{'
-                 = '}' [output]class_'}'
-                 = '=' [output]class_'='
+    Parenthese = '(' [output]class_'('
+               = ')' [output]class_')'
+               = '[' [output]class_'['
+               = ']' [output]class_']'
+               = '{' [output]class_'{'
+               = '}' [output]class_'}'
+
+    Symbol = '=' [output]class_'='
+           = '+' [output]class_'+'
+           = '-' [output]class_'-'
+           = '*' [output]class_'*'
+           = '/' [output]class_'/'
                  
-    KeywordToken = i f       [output](class_Keyword & class_if)
-                 = e l s e   [output](class_Keyword & class_else)
-                 = w h i l e [output](class_Keyword & class_while)
-        
-    TextualToken = [output]class_Identifier Id_word
-                 = [output]class_Number (
+    Keyword = i f       [output](class_Keyword & class_if)
+            = e l s e   [output](class_Keyword & class_else)
+            = w h i l e [output](class_Keyword & class_while)
+
+    Identifier = Id_word [output]class_Identifier
+    Number = [output]class_Number (
         Base_mark?
         (0 | StartDigit Digit*)
         ('.' (_ | Digit)+)?
         E_mark?
     )
-                 = [output]class_String (
-        '"' (Escape_sequence | Any)*[until]'"'
-    )
-                 = [output]class_RawString (
+    String = '"' (Escape_sequence | Any)*[until]'"' [output]class_String
+    RawString = [output]class_RawString (
         [temp]Term
         r (Id_word field_Term:match_span) '"'
         Any*[until]('"' Term)
     )
 
-    NewlineToken = [output]class_Newline (    
-        LF                    # Normal newline
-      | '/' '/' Any*[until]LF # Singleline comment
-    )+ # Count multiple empty lines as a single newlines
+    Newline = LF                    # Normal newline
+            = '/' '/' Any*[until]LF # Singleline comment
+
+    Newlines = Newline+ [output]class_Newlines
 
     MultilineComment = '/' '*' ([first](MultilineComment | Any))*[until]('*' '/')
 
     Ignorable = SP | CR | TAB    # Space
               = MultilineComment # Multiline comment
 
-    AnyToken = field_span:match_span (
-        SpecialToken | KeywordToken | TextualToken | NewlineToken
-    )
+    Token = Parenthese
+          = Symbol
+          = Keyword
+          = Identifier
+          = Number
+          = String
+          = RawString
     Tokens = (
         [longest_first](
             field_stream+:AnyToken
