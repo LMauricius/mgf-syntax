@@ -1,40 +1,40 @@
 # --- Modules --------------------------------------------------------------------------------------
-[import]standard_
-[using]standard_[selection](
-    [optional]() [repeat]() [range]()[to]()
-    [first]() [shortest]() [longest]() [shortest_first]() [longest_first]()
-    [set]()[to]() [temp]() [push]():()
-    [preprocess]()[then]...
-    [get]().(...)
+\import.standard_
+\using.standard_\selection(
+    \optional() \repeat() \range()\to()
+    \first() \shortest() \longest() \shortest_first() \longest_first()
+    \set()\to() \temp() \push():()
+    \preprocess()\then....
+    \get()(..)
 )
 
 # --- Macros and aliases ---------------------------------------------------------------------------
-[scope]num_[contains](
-    [include]standard_number_
+\scope.num_\contains(
+    \include.standard_number_
 )
 
-[scope]class_[contains](
-    [include]standard_class_
+\scope.class_\contains(
+    \include.standard_class_
 )
 
-[scope]field_[contains](
-    [include]standard_field
+\scope.field_\contains(
+    \include.standard_field
 )
 
-Pattern? = [optional]Pattern
-Pattern* = [repeat]{0+}:Pattern
-Pattern+ = [repeat]{1+}:Pattern
-First-Last = [range]First[to]Last
-Name:Pattern = [set]Name[to]Pattern
-Name+:Pattern = [add_entry]Name (Name[last_entry]):Pattern
-Path.(...).Name = [get]Path.(...).Name
+Pattern? = \optional.Pattern
+Pattern* = \repeat{0+}:Pattern
+Pattern+ = \repeat{1+}:Pattern
+First-Last = \range.First\to.Last
+Name:Pattern = \set.Name\to.Pattern
+Name+:Pattern = \add_entry.Name (Name\last_entry):Pattern
+Path(..).Name = \get.Path(..).Name
 
-Pattern*[until]End = [first](End | (Pattern Pattern*[until](End)))
+Pattern*\until.End = \first(End | (Pattern Pattern*\until(End)))
 
 # --- Tokenizer spec -------------------------------------------------------------------------------
-[scope]tokenizer_[contains](
-    [include]standard_unicode_characters_
-    [include]standard_unicode_categories_short_
+\scope.tokenizer_\contains(
+    \include.standard_unicode_characters_
+    \include.standard_unicode_categories_short_
 
     Any = standard_any_input
 
@@ -52,43 +52,43 @@ Pattern*[until]End = [first](End | (Pattern Pattern*[until](End)))
 
     Escape_sequence = '\' (n|r|t|0)
 
-    Parenthese = '(' [output]class_'('
-               = ')' [output]class_')'
-               = '[' [output]class_'['
-               = ']' [output]class_']'
-               = '{' [output]class_'{'
-               = '}' [output]class_'}'
+    Parenthese = '(' \output.class_'('
+               = ')' \output.class_')'
+               = '[' \output.class_'['
+               = ']' \output.class_']'
+               = '{' \output.class_'{'
+               = '}' \output.class_'}'
 
-    Symbol = '=' [output]class_'='
-           = '+' [output]class_'+'
-           = '-' [output]class_'-'
-           = '*' [output]class_'*'
-           = '/' [output]class_'/'
+    Symbol = '=' \output.class_'='
+           = '+' \output.class_'+'
+           = '-' \output.class_'-'
+           = '*' \output.class_'*'
+           = '/' \output.class_'/'
                  
-    Keyword = i f       [output](class_Keyword & class_if)
-            = e l s e   [output](class_Keyword & class_else)
-            = w h i l e [output](class_Keyword & class_while)
+    Keyword = i f       \output(class_Keyword & class_if)
+            = e l s e   \output(class_Keyword & class_else)
+            = w h i l e \output(class_Keyword & class_while)
 
-    Identifier = Id_word [output]class_Identifier
-    Number = [output]class_Number (
+    Identifier = Id_word \output.class_Identifier
+    Number = \output.class_Number (
         Base_mark?
         (0 | StartDigit Digit*)
         ('.' (_ | Digit)+)?
         E_mark?
     )
-    String = '"' (Escape_sequence | Any)*[until]'"' [output]class_String
-    RawString = [output]class_RawString (
-        [temp]Term
-        r (Id_word field_Term:match_span) '"'
-        Any*[until]('"' Term)
+    String = '"' (Escape_sequence | Any)*\until.'"' \output.class_String
+    RawString = \output.class_RawString (
+        \temp.Term
+        r Id_word\store.Term '"'
+        Any*\until('"' Term)
     )
 
     Newline = LF                    # Normal newline
-            = '/' '/' Any*[until]LF # Singleline comment
+            = '/' '/' Any*\until.LF # Singleline comment
 
-    Newlines = Newline+ [output]class_Newlines
+    Newlines = Newline+ \output.class_Newlines
 
-    MultilineComment = '/' '*' ([first](MultilineComment | Any))*[until]('*' '/')
+    MultilineComment = '/' '*' (\first(MultilineComment | Any))*\until('*' '/')
 
     Ignorable = SP | CR | TAB    # Space
               = MultilineComment # Multiline comment
@@ -101,7 +101,7 @@ Pattern*[until]End = [first](End | (Pattern Pattern*[until](End)))
           = String
           = RawString
     Tokens = (
-        [longest_first](
+        \longest_first(
             field_stream+:AnyToken
             | Ignorable
         )
@@ -110,8 +110,8 @@ Pattern*[until]End = [first](End | (Pattern Pattern*[until](End)))
 
 
 # --- Parser spec ----------------------------------------------------------------------------------
-[scope]parser_[contains](
-    [using]class_[selection](
+\scope.parser_\contains(
+    \using.class_\selection(
         '(' ')'
         '[' ']'
         '{' '}'
@@ -136,7 +136,7 @@ Pattern*[until]End = [first](End | (Pattern Pattern*[until](End)))
                     )?
                 )
 
-    Program = [output]class_File (Statement Newline)+ # field_Todo: finish program specification
+    Program = \output.class_File (Statement Newline)+ # field_Todo: finish program specification
 )
 
-Program = [preprocess]tokenizer_Tokens.stream[then]parser_Program
+Program = \preprocess.tokenizer_Tokens.stream\then.parser_Program
